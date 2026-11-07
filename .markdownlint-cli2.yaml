@@ -5,3 +5,4 @@ config:
     siblings_only: true
   MD033: false # inline HTML allowed
   MD041: false
+  MD060: false # table pipe spacing is cosmetic
