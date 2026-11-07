@@ -1,0 +1,45 @@
+# THE CI gate (GitHub Actions is informative only). Local: `ci-local` from the repo root.
+# Toolchain image must match rust-toolchain.toml.
+when:
+  - event: [push, pull_request, manual]
+
+variables:
+  - &rust_image rust:1.98.1
+
+steps:
+  - name: rust
+    image: *rust_image
+    environment:
+      CARGO_HOME: /cargo-home
+      CARGO_TERM_COLOR: never
+      RUSTDOCFLAGS: -Dwarnings
+    volumes:
+      - ci-cargo:/cargo-home
+    commands:
+      - rustup component add rustfmt clippy
+      - cargo fmt --all --check
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
+      - cargo test --workspace --locked
+      - cargo doc --workspace --no-deps --locked
+
+  - name: supply-chain
+    image: *rust_image
+    environment:
+      CARGO_HOME: /cargo-home
+    volumes:
+      - ci-cargo:/cargo-home
+    commands:
+      - curl -fsSL https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz | tar -xz --strip-components=1 -C /usr/local/bin
+      - cargo deny --locked check
+
+  - name: secrets
+    image: ghcr.io/gitleaks/gitleaks:v8.30.1
+    commands:
+      - gitleaks dir . --no-banner --redact
+
+  - name: docs
+    image: node:24
+    commands:
+      - npx --yes markdownlint-cli2@0.24.0 "**/*.md" "#docs/vision" "#target" "#node_modules"
+      - curl -fsSL https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-x86_64-unknown-linux-musl.tar.gz | tar -xz -C /usr/local/bin ./typos
+      - typos

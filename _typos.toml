@@ -1,0 +1,2 @@
+[files]
+extend-exclude = ["docs/vision/*", "LICENSE", "CODE_OF_CONDUCT.md", "Cargo.lock"]

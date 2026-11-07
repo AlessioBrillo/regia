@@ -1,0 +1,7 @@
+config:
+  default: true
+  MD013: false # long lines are fine in prose
+  MD024:
+    siblings_only: true
+  MD033: false # inline HTML allowed
+  MD041: false
