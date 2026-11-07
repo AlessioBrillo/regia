@@ -1,0 +1,16 @@
+name: Experiment
+description: A reproducible technical experiment (see docs/experiments/TEMPLATE.md)
+labels: ["type/experiment"]
+body:
+  - type: input
+    id: id
+    attributes: { label: Experiment ID, placeholder: "DAT-01" }
+    validations: { required: true }
+  - type: textarea
+    id: question
+    attributes: { label: Technical question and hypothesis }
+    validations: { required: true }
+  - type: textarea
+    id: exit
+    attributes: { label: Exit criteria and metrics }
+    validations: { required: true }

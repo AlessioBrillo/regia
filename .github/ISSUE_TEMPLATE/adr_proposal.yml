@@ -1,0 +1,15 @@
+name: ADR proposal
+description: Propose or reopen an architecture decision
+labels: ["adr"]
+body:
+  - type: input
+    id: adr
+    attributes: { label: ADR number or title }
+    validations: { required: true }
+  - type: textarea
+    id: alternatives
+    attributes: { label: Alternatives and the experiment that could falsify the preferred one }
+    validations: { required: true }
+  - type: textarea
+    id: reopen
+    attributes: { label: Conditions that would reopen the decision }
