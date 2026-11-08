@@ -85,9 +85,9 @@ Each scenario runs for every alternative, with 2 and with 5 clients unless state
 |---|---|---|
 | Intent preserved | % of operations whose effect is visible or explicitly conflicted | Per scenario |
 | Automatic vs manual conflicts | count | |
-| Convergence time | ms, p50/p95 | From last reconnect to identical state on all clients |
+| Convergence time | ms, p50/p95 | From last reconnect to identical state on all clients. Owner target (#15 q10): p95 < 5 s with 5 clients |
 | Bytes transferred | bytes | Per scenario |
-| Query latency, typical queries | ms, p50/p95 | Queries defined before running; local, device baseline |
+| Query latency, typical queries | ms, p50/p95 | Queries defined before running; local, device baseline. Owner target (#15 q10): local write p95 < 50 ms; 0 silent losses |
 | Index rebuild time | s | Per profile |
 | Storage and history growth | bytes; bytes per operation | After N operations |
 | Post-crash outcome | consistent / inconsistent | S-07 |
