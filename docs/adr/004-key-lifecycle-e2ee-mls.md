@@ -27,7 +27,7 @@ Constraint: no proprietary cryptography. Document where plaintext exists (device
 
 ## Evidence
 
-None yet.
+None yet. Experiment plan: [CRY-01](../experiments/CRY-01-group-keys-membership.md) (planned, not executed).
 
 ## Consequences
 

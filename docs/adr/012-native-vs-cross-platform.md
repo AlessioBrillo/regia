@@ -27,7 +27,7 @@ Constraint: never claim multi-platform support before a tested build.
 
 ## Evidence
 
-None yet.
+None yet. Experiment plan: [CL-01](../experiments/CL-01-client-comparison.md) (planned, not executed).
 
 ## Consequences
 

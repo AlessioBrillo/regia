@@ -26,7 +26,7 @@ Constraint: idempotency of external effects is required with either choice.
 
 ## Evidence
 
-None yet.
+None yet. Experiment plan: [WFE-01](../experiments/WFE-01-workflow-runtime.md) (planned, not executed).
 
 ## Consequences
 

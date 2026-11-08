@@ -24,7 +24,7 @@ spikes. The first real integration must be read-only or low-risk, with test acco
 - [ ] Requirements AR-01..AR-15 each with verification method and owner
 - [x] Threat model completed (plaintext map, T-01..T-13): baseline; open cells are decisions for ADR-004/005 and #15
 - [x] Core entity schema v0 and contract suite (`core/domain`, logical schema, not a storage decision)
-- [ ] Benchmark plan DAT-01 and experiment cards for CL-01, CRY-01, policy and workflow spikes
+- [x] Benchmark plan DAT-01 and experiment cards for CL-01, CRY-01, policy and workflow spikes (plans; none executed, CL-01 blocked on #14)
 - [ ] Answers to the open questions below
 - [ ] ADR-001..012 each either accepted with evidence or explicitly scheduled
 
