@@ -1,10 +1,10 @@
 # CL-01 — Client comparison
 
-Status: **plan, not executed, blocked on the device matrix** ([#14](https://github.com/AlessioBrillo/regia/issues/14)).
-Report §4.1. Feeds ADR-012. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Status: **plan, not executed.** Device matrix decided in [#14](https://github.com/AlessioBrillo/regia/issues/14).
+Report §4.1. Feeds ADR-012. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
-ID / version / owner:            CL-01 / v1 (plan) / TBD
+ID / version / owner:            CL-01 / v1 (plan) / @AlessioBrillo
 Technical question:              For one realistic flow, how do native clients and a cross-platform client compare
                                  on integration effort, stability, accessibility, perceived latency, storage and
                                  debuggability, and how much shared Rust core pays for itself?
@@ -27,11 +27,17 @@ Conditions that would reopen:    OS API changes affecting share/storage/on-devic
                                  supported matrix; binding cost changes materially
 ```
 
-## Prerequisite
+## Device matrix (owner decision, 2026-11-08, #14)
 
-The first platform is chosen **from the devices actually available**, not in the abstract (ADR-012). Until #14 lists
-iOS/Android/desktop devices and OS versions, this card cannot be scheduled, and no claim of "on-device" support is made
-in general (report §8.3).
+The first platform is chosen **from the devices actually available**, not in the abstract (ADR-012). OS versions are
+recorded at the first run; no claim of "on-device" support is made in general (report §8.3).
+
+| Device | Role | OS version |
+|---|---|---|
+| Windows 11 desktop | Desktop client, dev machine | recorded at run |
+| Recent Android phone | Mobile client | recorded at run |
+| Recent iPhone + Mac with Xcode | Mobile client; the Mac is required to build iOS | recorded at run |
+| Arch Linux box | Linux client and test backend host (also runs CI) | recorded at run |
 
 ## Flow under test
 

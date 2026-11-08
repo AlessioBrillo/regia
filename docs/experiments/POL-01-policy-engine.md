@@ -1,9 +1,9 @@
 # POL-01 — Policy engine spike (Cedar vs OPA/Rego)
 
-Status: **plan, not executed.** Report §4.5. Feeds ADR-005. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Status: **plan, not executed.** Report §4.5. Feeds ADR-005. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
-ID / version / owner:            POL-01 / v1 (plan) / TBD
+ID / version / owner:            POL-01 / v1 (plan) / @AlessioBrillo
 Technical question:              Which engine expresses Regìa's nested-circle authorisation with explainable,
                                  deny-by-default decisions that behave identically in backend, sync, search and
                                  on device?

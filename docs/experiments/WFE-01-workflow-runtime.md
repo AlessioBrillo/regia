@@ -1,13 +1,13 @@
 # WFE-01 — Workflow runtime spike (state machine + outbox vs Temporal)
 
-Status: **plan, not executed.** Report §4.7, §5.3. Feeds ADR-007. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Status: **plan, not executed.** Report §4.7, §5.3. Feeds ADR-007. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 Naming: the report calls this spike "WF-01", which collides with workflow WF-01 of §5.1 (capture → proposal). This
 repository calls the spike **WFE-01** (workflow *engine*). ADR-007 still says "WF-01 (§4.7)"; it is clarified when that
 ADR is next edited.
 
 ```text
-ID / version / owner:            WFE-01 / v1 (plan) / TBD
+ID / version / owner:            WFE-01 / v1 (plan) / @AlessioBrillo
 Technical question:              Can a persistent state machine + outbox meet recovery, timer and human-wait
                                  requirements, or does durable execution (Temporal) remove enough risk to justify
                                  its operational and data-handling cost?

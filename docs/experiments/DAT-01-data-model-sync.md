@@ -1,10 +1,10 @@
 # DAT-01 — Data model and sync benchmark
 
 Status: **plan, not executed.** No result below is a measurement; no alternative is selected. Report §4.3, §4.4, §7.3.
-Feeds ADR-002 and ADR-003. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Feeds ADR-002 and ADR-003. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
-ID / version / owner:            DAT-01 / v1 (plan) / TBD
+ID / version / owner:            DAT-01 / v1 (plan) / @AlessioBrillo
 Technical question:              Which structure is the single source of truth for each object, and which
                                  data-model + sync combination preserves user intent, converges, isolates
                                  circles and recovers from crashes?
@@ -85,9 +85,9 @@ Each scenario runs for every alternative, with 2 and with 5 clients unless state
 |---|---|---|
 | Intent preserved | % of operations whose effect is visible or explicitly conflicted | Per scenario |
 | Automatic vs manual conflicts | count | |
-| Convergence time | ms, p50/p95 | From last reconnect to identical state on all clients |
+| Convergence time | ms, p50/p95 | From last reconnect to identical state on all clients. Owner target (#15 q10): p95 < 5 s with 5 clients |
 | Bytes transferred | bytes | Per scenario |
-| Query latency, typical queries | ms, p50/p95 | Queries defined before running; local, device baseline |
+| Query latency, typical queries | ms, p50/p95 | Queries defined before running; local, device baseline. Owner target (#15 q10): local write p95 < 50 ms; 0 silent losses |
 | Index rebuild time | s | Per profile |
 | Storage and history growth | bytes; bytes per operation | After N operations |
 | Post-crash outcome | consistent / inconsistent | S-07 |

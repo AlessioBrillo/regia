@@ -61,16 +61,16 @@ CRY-01, POL-01, WFE-01, CL-01 as they land).
 
 For each location: **who** can read plaintext, **why**, **for how long**, under **which consent**, and which
 `ServerVisibility` value governs it (`core/domain/src/visibility.rs`). Cells marked **TBD** are decisions, not
-omissions: they depend on ADR-004 and on the owner's answers ([#15](https://github.com/AlessioBrillo/regia/issues/15)).
+omissions: they depend on ADR-004. The owner's answers ([#15](https://github.com/AlessioBrillo/regia/issues/15)) are recorded in the next section.
 "Server without access to content" must be true for the **whole declared path**, not only for a database table.
 
 | Location | Plaintext readable by | Why | Duration | `server_readable` | `end_to_end_encrypted` | `transient_worker` |
 |---|---|---|---|---|---|---|
 | Device storage | Device user, app | Local-first operation | Until deleted | n/a | At rest per OS + app key (TBD, ADR-004) | n/a |
 | Process RAM | App process | Rendering, editing | Process lifetime | n/a | Decrypted while in use | n/a |
-| Sync service / relay | Operator | Relay and merge | While stored/in transit | Yes | **No** — ciphertext only; metadata still visible (TBD) | No |
+| Sync service / relay | Operator | Relay and merge | While stored/in transit | Yes | **No** — ciphertext only; routing metadata (circle id, timestamps, sizes) visible: accepted residual risk (#15 q4) | No |
 | Orchestrator / workflow | Operator code path | Run workflows | Task duration | Yes | Only if a task is explicitly authorised for plaintext | Yes, scoped to task |
-| Logs / traces / audit | Authorised operator | Diagnosis, accountability | Short, bounded (TBD) | **Never content** | **Never content** | **Never content** |
+| Logs / traces / audit | Authorised operator | Diagnosis, accountability | Short, bounded; readable only by the owner (#15 q8) | **Never content** | **Never content** | **Never content** |
 | AI provider (cloud) | Provider | Inference | Provider-declared retention (TBD) | Only with specific consent | Only with specific consent | Only with specific consent |
 | OCR / STT | Worker (local or remote) | Extraction | Task duration | Yes | Only local, or with consent | Yes |
 | Object store | Operator | Files and media | Until deleted | Yes | Ciphertext only | No |
@@ -91,17 +91,21 @@ ambiguous outcomes are reconciled before retrying · the "guardian" may flag or 
 not the last word on policy · policy decisions and AI results stay distinguishable in the audit · policy errors are
 `deny`, never `allow`.
 
-## Pending owner decisions
+## Owner decisions (2026-11-08, [#15](https://github.com/AlessioBrillo/regia/issues/15))
 
-Proposed defaults are deny-by-default and **not decided**; they become decisions only through
-[#15](https://github.com/AlessioBrillo/regia/issues/15) and the ADRs.
+These are constraints for the experiments, not technology choices; ADRs stay `proposed` until backed by evidence.
 
-| Question (report §14.3) | Proposed default | Decides |
+| Question (report §14.3) | Decision | Verified by |
 |---|---|---|
-| Q3 — E2EE for all shared objects or a labelled subset | Subset first (`restricted`, `secret`); revisit after CRY-01 | ADR-004 |
-| Q4 — Data inaccessible to the operator; server-side workflows | Everything labelled `secret`; workflows on it run on-device | ADR-004, 008 |
-| Q5 — Revoked member returns online with modified data | Rejected and quarantined for owner review, never merged silently | ADR-003, 004 |
-| Q8 — Who can read admin logs | Founder only, access audited, no content in logs | ADR-010 |
+| Q2 — Identity | Passkey as main factor; email for recovery and notifications only; test accounts | ADR-004, CRY-01 |
+| Q3 — E2EE scope | Mandatory first for the sensitive subset; the rest encrypted in transit and at rest server-side | CRY-01, ADR-004 |
+| Q4 — Hidden from the operator | Sensitive content and private keys. Routing metadata stays visible (residual risk) | CRY-01, POL-01 |
+| Q5 — Revoked member returns online | Changes made after revocation are rejected by the circle, quarantined on the device and shown to an admin as proposals. Never lost silently, never merged automatically | DAT-01 S-04/S-05, CRY-01 |
+| Q6 — First-slice integrations | None up to G2; synthetic data only | Roadmap |
+| Q7 — Scale | 1 person, 2-5 devices | DAT-01 (2 and 5 clients) |
+| Q8 — Test backend and admin logs | Self-hosted on the Arch box; logs readable only by the owner; no cloud sub-processors in G1 | ADR-010, AR-12 |
+| Q9 — Excluded from the pilot | Health, minors, finance, credentials, ID documents, until CRY-01 and POL-01 pass and the abuse suite is green. Policy denies their capture | POL-01, AR-04 |
+| Q10 — Decisive targets | Local write p95 < 50 ms; convergence after reconnect p95 < 5 s with 5 clients; 0 silent losses. Notification SLO deferred to G2 | DAT-01 |
 
 ## Out of scope for this baseline
 
