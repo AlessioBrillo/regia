@@ -1,0 +1,119 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "document",
+    "header": {
+      "id": "01900000-0000-7000-8000-000000000042",
+      "circle": "01900000-0000-7000-8000-000000000010",
+      "confidentiality": "circle",
+      "server_visibility": "transient_worker",
+      "provenance": {
+        "sourced": {
+          "first": {
+            "source": "01900000-0000-7000-8000-000000000030",
+            "locator": {
+              "char_span": {
+                "start": 10,
+                "end": 42
+              }
+            },
+            "captured_at": "2026-11-07T10:00:00Z"
+          },
+          "more": [
+            {
+              "source": "01900000-0000-7000-8000-000000000030",
+              "locator": null,
+              "captured_at": "2026-11-07T10:00:00Z"
+            }
+          ]
+        }
+      }
+    },
+    "title": {
+      "value": "Synthetic school circular",
+      "assertion": "proposed",
+      "provenance": {
+        "sourced": {
+          "first": {
+            "source": "01900000-0000-7000-8000-000000000030",
+            "locator": {
+              "char_span": {
+                "start": 10,
+                "end": 42
+              }
+            },
+            "captured_at": "2026-11-07T10:00:00Z"
+          },
+          "more": [
+            {
+              "source": "01900000-0000-7000-8000-000000000030",
+              "locator": null,
+              "captured_at": "2026-11-07T10:00:00Z"
+            }
+          ]
+        }
+      }
+    },
+    "source": "01900000-0000-7000-8000-000000000030",
+    "dates": [
+      {
+        "value": {
+          "role": "birthday",
+          "at": "2026-11-03T00:00:00Z"
+        },
+        "assertion": "proposed",
+        "provenance": {
+          "sourced": {
+            "first": {
+              "source": "01900000-0000-7000-8000-000000000030",
+              "locator": {
+                "char_span": {
+                  "start": 10,
+                  "end": 42
+                }
+              },
+              "captured_at": "2026-11-07T10:00:00Z"
+            },
+            "more": [
+              {
+                "source": "01900000-0000-7000-8000-000000000030",
+                "locator": null,
+                "captured_at": "2026-11-07T10:00:00Z"
+              }
+            ]
+          }
+        },
+        "confidence": 950
+      },
+      {
+        "value": {
+          "role": "due",
+          "at": "2026-11-20T00:00:00Z"
+        },
+        "assertion": "proposed",
+        "provenance": {
+          "sourced": {
+            "first": {
+              "source": "01900000-0000-7000-8000-000000000030",
+              "locator": {
+                "char_span": {
+                  "start": 10,
+                  "end": 42
+                }
+              },
+              "captured_at": "2026-11-07T10:00:00Z"
+            },
+            "more": [
+              {
+                "source": "01900000-0000-7000-8000-000000000030",
+                "locator": null,
+                "captured_at": "2026-11-07T10:00:00Z"
+              }
+            ]
+          }
+        },
+        "confidence": 780
+      }
+    ]
+  }
+}

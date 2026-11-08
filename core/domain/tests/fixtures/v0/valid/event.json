@@ -1,0 +1,86 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "event",
+    "header": {
+      "id": "01900000-0000-7000-8000-000000000041",
+      "circle": "01900000-0000-7000-8000-000000000010",
+      "confidentiality": "restricted",
+      "server_visibility": "server_readable",
+      "provenance": {
+        "sourced": {
+          "first": {
+            "source": "01900000-0000-7000-8000-000000000030",
+            "locator": {
+              "page": 2
+            },
+            "captured_at": "2026-11-07T10:00:00Z"
+          },
+          "more": []
+        }
+      }
+    },
+    "title": {
+      "value": "Synthetic parents meeting",
+      "assertion": "proposed",
+      "provenance": {
+        "sourced": {
+          "first": {
+            "source": "01900000-0000-7000-8000-000000000030",
+            "locator": {
+              "page": 2
+            },
+            "captured_at": "2026-11-07T10:00:00Z"
+          },
+          "more": []
+        }
+      },
+      "confidence": 910
+    },
+    "starts_at": {
+      "value": "2026-11-12T17:00:00+01:00",
+      "assertion": "proposed",
+      "provenance": {
+        "sourced": {
+          "first": {
+            "source": "01900000-0000-7000-8000-000000000030",
+            "locator": {
+              "page": 2
+            },
+            "captured_at": "2026-11-07T10:00:00Z"
+          },
+          "more": []
+        }
+      },
+      "confidence": 900
+    },
+    "ends_at": {
+      "value": "2026-11-12T18:30:00+01:00",
+      "assertion": "proposed",
+      "provenance": {
+        "sourced": {
+          "first": {
+            "source": "01900000-0000-7000-8000-000000000030",
+            "locator": {
+              "page": 2
+            },
+            "captured_at": "2026-11-07T10:00:00Z"
+          },
+          "more": []
+        }
+      },
+      "confidence": 600
+    },
+    "participants": [
+      {
+        "value": "01900000-0000-7000-8000-000000000020",
+        "assertion": "confirmed",
+        "provenance": {
+          "unsourced": {
+            "reason": "typed by user"
+          }
+        }
+      }
+    ]
+  }
+}

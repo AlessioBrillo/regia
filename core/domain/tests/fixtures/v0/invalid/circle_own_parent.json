@@ -1,0 +1,9 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "circle",
+    "id": "01900000-0000-7000-8000-000000000010",
+    "name": "Synthetic Family",
+    "parent": "01900000-0000-7000-8000-000000000010"
+  }
+}
