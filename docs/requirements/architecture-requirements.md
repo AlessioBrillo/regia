@@ -9,7 +9,7 @@ evidence stored). Every requirement needs a verification method and an owner bef
 | AR-02 | Real local-first | Operations in airplane mode; later sync verified | E2E offline scenarios (WF-04) | TBD | open |
 | AR-03 | Deterministic convergence | Property-based tests, network-partition simulation | DAT-01 benchmark | TBD | open |
 | AR-04 | Circle boundaries enforced everywhere | Negative tests on API, sync, search, cache, notifications, export, prompt, audit | Security test suite | TBD | open |
-| AR-05 | Encryption consistent with the threat model | Threat model, key lifecycle, revocation/rotation/recovery tests | CRY-01 spike | TBD | open |
+| AR-05 | Encryption consistent with the threat model | Threat model, key lifecycle, revocation/rotation/recovery tests | CRY-01 spike | TBD | partial (threat model baseline, `docs/threat-model`; no evidence yet) |
 | AR-06 | Knowledge provenance | Every extracted fact keeps source, position, timestamp, confidence, confirmation state | Type-level invariants + automated test | TBD | partial (`Provenance`, `Fact` with confidence; enforced on every entity by the v0 contract suite) |
 | AR-07 | Governed agent | Every mutating tool call has a policy decision, approval, state and correlated audit | Policy + action tests | TBD | open |
 | AR-08 | Resumable workflows | Crash/timeout injection; resume without duplicate side effects | Fault injection (WP5) | TBD | open |
@@ -19,7 +19,7 @@ evidence stored). Every requirement needs a verification method and an owner bef
 | AR-12 | Observability without exfiltration | Correlated traces without personal payloads by default; controlled audit access | Log-leak tests | TBD | open |
 | AR-13 | Modular evolution | Bounded contexts, internal APIs, data ownership, backward-compatible migrations | Review + migration tests | TBD | open |
 | AR-14 | Different experiences, common rules | Same policies and source of truth for all profiles | Cross-surface policy tests | TBD | open |
-| AR-15 | Verifiable security | Threat modeling, abuse suite, isolation tests, independent review before widening trials | Security review gate | TBD | open |
+| AR-15 | Verifiable security | Threat modeling, abuse suite, isolation tests, independent review before widening trials | Security review gate | TBD | partial (threat model baseline; review not done) |
 
 ## Statements that need a precise specification before implementation (report §2.1)
 
