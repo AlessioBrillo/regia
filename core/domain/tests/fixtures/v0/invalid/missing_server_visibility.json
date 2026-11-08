@@ -1,0 +1,26 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "person",
+    "header": {
+      "id": "01900000-0000-7000-8000-000000000021",
+      "circle": "01900000-0000-7000-8000-000000000010",
+      "confidentiality": "circle",
+      "provenance": {
+        "unsourced": {
+          "reason": "typed by user"
+        }
+      }
+    },
+    "display_name": {
+      "value": "Synthetic Child",
+      "assertion": "confirmed",
+      "provenance": {
+        "unsourced": {
+          "reason": "typed by user"
+        }
+      }
+    },
+    "principal": null
+  }
+}

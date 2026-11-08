@@ -82,6 +82,10 @@ typed_id!(
     PrincipalId
 );
 typed_id!(
+    /// A person in the graph (e.g. a child). Not necessarily an acting [`PrincipalId`].
+    PersonId
+);
+typed_id!(
     /// A physical device enrolled by a principal.
     DeviceId
 );

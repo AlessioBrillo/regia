@@ -1,0 +1,13 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "source",
+    "id": "01900000-0000-7000-8000-000000000030",
+    "circle": "01900000-0000-7000-8000-000000000010",
+    "kind": "pdf",
+    "captured_at": "2026-11-07T10:00:00Z",
+    "captured_by": "01900000-0000-7000-8000-000000000001",
+    "confidentiality": "restricted",
+    "server_visibility": "end_to_end_encrypted"
+  }
+}
