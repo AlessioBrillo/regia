@@ -5,6 +5,8 @@
 //! `fixtures/v0/invalid/*.json` must each be refused, for the reason listed below.
 //! Fixtures are synthetic; never add real personal data.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::{collections::BTreeSet, fs, path::PathBuf};
 
 use regia_domain::Envelope;
