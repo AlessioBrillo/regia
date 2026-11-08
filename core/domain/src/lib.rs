@@ -13,8 +13,11 @@ pub mod object;
 pub mod provenance;
 pub mod visibility;
 
-pub use id::{CircleId, DeviceId, IdError, ObjectId, PrincipalId, SourceId};
+pub use id::{CircleId, DeviceId, IdError, ObjectId, PersonId, PrincipalId, SourceId};
 pub use label::{Confidentiality, UnknownLabel};
 pub use object::ObjectHeader;
-pub use provenance::{Assertion, Fact, Locator, Provenance, SourceRef, UnsourcedReason};
+pub use provenance::{
+    Assertion, Confidence, ConfidenceOutOfRange, Fact, Locator, Provenance, SourceRef,
+    UnsourcedReason,
+};
 pub use visibility::{ServerVisibility, UnknownVisibility};
