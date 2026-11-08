@@ -27,7 +27,7 @@ Constraint: not every field is a natural CRDT; explicit conflicts are allowed wh
 
 ## Evidence
 
-None yet.
+None yet. Benchmark plan and synthetic dataset: [DAT-01](../experiments/DAT-01-data-model-sync.md) (planned, not executed).
 
 ## Consequences
 
