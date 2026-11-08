@@ -7,12 +7,14 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod entity;
 pub mod id;
 pub mod label;
 pub mod object;
 pub mod provenance;
 pub mod visibility;
 
+pub use entity::{Circle, Membership, Person, Role, Source, SourceKind, Timestamp};
 pub use id::{CircleId, DeviceId, IdError, ObjectId, PersonId, PrincipalId, SourceId};
 pub use label::{Confidentiality, UnknownLabel};
 pub use object::ObjectHeader;
