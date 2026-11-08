@@ -1,9 +1,9 @@
 # CRY-01 — Group keys and membership
 
-Status: **plan, not executed.** Report §4.5, §5.6. Feeds ADR-004. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Status: **plan, not executed.** Report §4.5, §5.6. Feeds ADR-004. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
-ID / version / owner:            CRY-01 / v1 (plan) / TBD
+ID / version / owner:            CRY-01 / v1 (plan) / @AlessioBrillo
 Technical question:              Can circle membership changes (invite, add device, removal, offline revocation)
                                  be expressed with a maintained group-key scheme, and what exactly does each
                                  change protect: future access, historical data, copies already downloaded,

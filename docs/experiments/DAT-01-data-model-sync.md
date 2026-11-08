@@ -1,10 +1,10 @@
 # DAT-01 — Data model and sync benchmark
 
 Status: **plan, not executed.** No result below is a measurement; no alternative is selected. Report §4.3, §4.4, §7.3.
-Feeds ADR-002 and ADR-003. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Feeds ADR-002 and ADR-003. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
-ID / version / owner:            DAT-01 / v1 (plan) / TBD
+ID / version / owner:            DAT-01 / v1 (plan) / @AlessioBrillo
 Technical question:              Which structure is the single source of truth for each object, and which
                                  data-model + sync combination preserves user intent, converges, isolates
                                  circles and recovers from crashes?

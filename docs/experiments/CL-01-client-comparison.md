@@ -1,10 +1,10 @@
 # CL-01 — Client comparison
 
 Status: **plan, not executed, blocked on the device matrix** ([#14](https://github.com/AlessioBrillo/regia/issues/14)).
-Report §4.1. Feeds ADR-012. Owner: TBD ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Report §4.1. Feeds ADR-012. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
-ID / version / owner:            CL-01 / v1 (plan) / TBD
+ID / version / owner:            CL-01 / v1 (plan) / @AlessioBrillo
 Technical question:              For one realistic flow, how do native clients and a cross-platform client compare
                                  on integration effort, stability, accessibility, perceived latency, storage and
                                  debuggability, and how much shared Rust core pays for itself?
