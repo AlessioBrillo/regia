@@ -28,7 +28,8 @@ Constraint: Automerge + SQLite is a candidate, not a decision.
 
 ## Evidence
 
-None yet.
+None for the decision itself. Schema v0 (`regia-domain`, `Envelope`) is a logical wire contract that is
+independent of storage: it carries no revision, clock or merge metadata, so it does not pre-empt this ADR or ADR-003.
 
 ## Consequences
 
