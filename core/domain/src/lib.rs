@@ -14,7 +14,10 @@ pub mod object;
 pub mod provenance;
 pub mod visibility;
 
-pub use entity::{Circle, Membership, Person, Role, Source, SourceKind, Timestamp};
+pub use entity::{
+    Circle, DateRole, DatedValue, Document, Event, Membership, Person, Role, Source, SourceKind,
+    Task, TaskStatus, Timestamp,
+};
 pub use id::{CircleId, DeviceId, IdError, ObjectId, PersonId, PrincipalId, SourceId};
 pub use label::{Confidentiality, UnknownLabel};
 pub use object::ObjectHeader;
