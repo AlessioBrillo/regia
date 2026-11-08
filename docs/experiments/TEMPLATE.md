@@ -40,5 +40,8 @@ Alternatives first pass the minimum requirements; security is a **gate**, not an
 
 ## Planned experiments
 
-`CL-01` client comparison · `DAT-01` data model and sync · `CRY-01` group keys and membership · policy engine spike
-(Cedar vs OPA/Rego) · `WF-01` (§4.7) state machine vs Temporal · AI evaluation harness per task family.
+[`CL-01`](CL-01-client-comparison.md) client comparison · [`DAT-01`](DAT-01-data-model-sync.md) data model and sync ·
+[`CRY-01`](CRY-01-group-keys-membership.md) group keys and membership ·
+[`POL-01`](POL-01-policy-engine.md) policy engine (Cedar vs OPA/Rego) ·
+[`WFE-01`](WFE-01-workflow-runtime.md) state machine vs Temporal (the report's "WF-01" spike, §4.7) ·
+AI evaluation harness per task family (card to come with WP4). All cards are plans; none has been executed.

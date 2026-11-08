@@ -27,7 +27,7 @@ Constraint: engine unreachable or attribute missing means deny for high-risk act
 
 ## Evidence
 
-None yet.
+None yet. Experiment plan: [POL-01](../experiments/POL-01-policy-engine.md) (planned, not executed).
 
 ## Consequences
 
