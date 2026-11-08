@@ -7,7 +7,7 @@ evidence stored). Every requirement needs a verification method and an owner bef
 |---|---|---|---|---|---|
 | AR-01 | Explicit domains and contracts | Versioned schema, API contracts, tested migrations | Contract + migration tests | TBD | partial (`regia-domain` types; entity schema v0 + contract suite, no migrations yet) |
 | AR-02 | Real local-first | Operations in airplane mode; later sync verified | E2E offline scenarios (WF-04) | TBD | open |
-| AR-03 | Deterministic convergence | Property-based tests, network-partition simulation | DAT-01 benchmark | TBD | open |
+| AR-03 | Deterministic convergence | Property-based tests, network-partition simulation | DAT-01 benchmark | TBD | partial (plan + synthetic dataset; benchmark not executed) |
 | AR-04 | Circle boundaries enforced everywhere | Negative tests on API, sync, search, cache, notifications, export, prompt, audit | Security test suite | TBD | open |
 | AR-05 | Encryption consistent with the threat model | Threat model, key lifecycle, revocation/rotation/recovery tests | CRY-01 spike | TBD | partial (threat model baseline, `docs/threat-model`; no evidence yet) |
 | AR-06 | Knowledge provenance | Every extracted fact keeps source, position, timestamp, confidence, confirmation state | Type-level invariants + automated test | TBD | partial (`Provenance`, `Fact` with confidence; enforced on every entity by the v0 contract suite) |

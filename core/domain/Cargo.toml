@@ -18,5 +18,9 @@ uuid.workspace = true
 proptest.workspace = true
 serde_json.workspace = true
 
+[[example]]
+name = "dat01"
+test = true # `cargo test --workspace` (the CI gate) also runs the dataset's invariants
+
 [lints]
 workspace = true
