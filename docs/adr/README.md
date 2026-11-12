@@ -12,8 +12,8 @@ An ADR is accepted only with reproducible evidence from an [experiment](../exper
 | [005](005-policy-engine.md) | Policy engine and label taxonomy | proposed | POL-01 · G1 |
 | [006](006-backend-modular-monolith.md) | Modular monolith, storage, backend API | proposed | After DAT-01, POL-01, WFE-01 · end of G1 |
 | [007](007-workflow-runtime.md) | State machine + outbox vs Temporal | proposed | WFE-01 · G1 |
-| [008](008-ai-gateway-task-router.md) | AI gateway and task router | proposed | AI-01 (card to write, WP4) · G1 |
-| [009](009-ai-providers-runtimes.md) | On-device and cloud AI runtimes | proposed | AI-01 (card to write, WP4) · G1 |
+| [008](008-ai-gateway-task-router.md) | AI gateway and task router | proposed | [AI-01](../experiments/AI-01-ai-gateway-runtimes.md) · G1 |
+| [009](009-ai-providers-runtimes.md) | On-device and cloud AI runtimes | proposed | [AI-01](../experiments/AI-01-ai-gateway-runtimes.md) · G1 |
 | [010](010-telemetry-and-audit.md) | Telemetry and audit | proposed | Vertical slice · G2 |
 | [011](011-search-and-indexes.md) | Search and indexes | proposed | Vertical slice · G2 (semantic search is out of the slice) |
 | [012](012-native-vs-cross-platform.md) | Native vs cross-platform clients | proposed | CL-01 · G1 |
