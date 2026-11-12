@@ -3,6 +3,7 @@
 //! The application layer builds a minimal, complete [`Request`]; engines never fetch data (report §4.5).
 //! Every error path is a `deny` (AGENTS.md). Throwaway code: nothing here is a decision (ADR-005 is pending).
 
+pub mod cedar;
 pub mod oracle;
 
 use regia_domain::{CircleId, PrincipalId, Role};
@@ -168,7 +169,14 @@ pub trait Engine {
 }
 
 /// The engines under comparison, oracle first.
+///
+/// # Panics
+/// If a bundled policy set is invalid; that is a build defect, never a runtime fallback.
 #[must_use]
+#[allow(clippy::expect_used)] // a bundled policy set that fails validation is a build defect
 pub fn engines() -> Vec<Box<dyn Engine>> {
-    vec![Box::new(oracle::Oracle::new("v1"))]
+    vec![
+        Box::new(oracle::Oracle::new("v1")),
+        Box::new(cedar::CedarEngine::new("v1").expect("bundled Cedar policies are valid")),
+    ]
 }

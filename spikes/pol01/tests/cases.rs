@@ -355,3 +355,16 @@ fn p11_excluded_categories_cannot_be_created() {
     ok.category = Some("note".to_owned());
     check("P-11 ordinary", &req(p, Action::Create, ok, user()), true);
 }
+
+#[test]
+fn p06_malformed_policy_yields_no_engine() {
+    use regia_spike_pol01::cedar::CedarEngine;
+    assert!(
+        CedarEngine::from_sources("entity User;", "permit (principal, action, resource", "bad")
+            .is_err()
+    );
+    // A policy that fails strict validation (unknown attribute) is refused too.
+    let schema = include_str!("../policies/regia.cedarschema");
+    let bad = r#"permit (principal, action, resource) when { resource.nonexistent == "x" };"#;
+    assert!(CedarEngine::from_sources(schema, bad, "bad").is_err());
+}

@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+cedar-policy = "=4.14.1"
 regia-domain = { path = "../../core/domain" }
 
 [dev-dependencies]
