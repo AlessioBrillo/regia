@@ -52,5 +52,5 @@ permit (principal, action in Action::"view", resource) when {
 
 @id("allow_ancestor_owner_view")
 permit (principal, action in Action::"view", resource) when {
-  resource has label && ["circle", "public"].contains(resource.label) && principal in resource.anc_owners
+  resource has label && ["circle", "public"].contains(resource.label) && principal in resource.ancestor_owners
 };

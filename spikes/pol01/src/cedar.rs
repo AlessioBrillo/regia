@@ -88,15 +88,15 @@ impl CedarEngine {
             principal_parents.insert(g);
         }
 
-        // Resource groups; ancestors' Owners hang under one AncOwners group.
+        // Resource groups; ancestors' Owners hang under one AncestorOwners group.
         let own = r.resource.circle.to_string();
-        let anc_owners = group(&mut parents, "AncOwners", "res".to_owned())?;
+        let ancestor_owners = group(&mut parents, "AncestorOwners", "res".to_owned())?;
         for a in &r.resource.ancestors {
             let g = group(&mut parents, "Owners", a.to_string())?;
             parents
                 .get_mut(&("Owners", a.to_string()))
                 .ok_or("missing group")?
-                .insert(anc_owners.clone());
+                .insert(ancestor_owners.clone());
             drop(g);
         }
         let mut attrs = HashMap::from([
@@ -117,8 +117,8 @@ impl CedarEngine {
                 RestrictedExpression::new_entity_uid(group(&mut parents, "Revoked", own)?),
             ),
             (
-                "anc_owners".to_owned(),
-                RestrictedExpression::new_entity_uid(anc_owners),
+                "ancestor_owners".to_owned(),
+                RestrictedExpression::new_entity_uid(ancestor_owners),
             ),
             (
                 "grantees".to_owned(),

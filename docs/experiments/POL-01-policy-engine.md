@@ -1,6 +1,6 @@
 # POL-01 — Policy engine spike (Cedar vs OPA/Rego)
 
-Status: **plan, not executed.** Report §4.5. Feeds ADR-005. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
+Status: **executed 2026-11-12 (desktop, container); outcome: trial Cedar, ADR-005 still proposed.** Results: [`pol-01/results-2026-11-12.md`](pol-01/results-2026-11-12.md). Report §4.5. Feeds ADR-005. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
 ID / version / owner:            POL-01 / v1 (plan) / @AlessioBrillo
@@ -16,10 +16,11 @@ Relevant threat model:           T-03, T-04, T-06, T-12 (docs/threat-model)
 Reproducible setup:              Engine + exact version, OS, hardware, policy and input fixtures in the repo
 Method and test inputs:          Principal/action/resource/context model below; DAT-01 dataset as resources
 Metrics collected and units:     See "Metrics"
-Raw results and repetitions:     Not executed
-Failed cases / limits:           Not executed
-Effect on requirements:          Not executed
-Decision: adopt/trial/defer/reject:  Not executed
+Raw results and repetitions:     results-2026-11-12.md; latency x3 in pol-01/latency-raw.txt; 10 000 property cases
+Failed cases / limits:           regorus is not OPA; no device/binding runs; rules not independently reviewed
+Effect on requirements:          AR-04/AR-07: both engines hold deny-by-default on all error paths; AR-14 not yet
+                                 exercised across real surfaces
+Decision: adopt/trial/defer/reject:  trial Cedar (proposed; owner acceptance pending)
 Linked ADR:                      ADR-005
 Conditions that would reopen:    A bypass found in the chosen engine's semantics; need for local execution that
                                  the engine cannot satisfy; a policy class the model cannot express

@@ -12,7 +12,7 @@ publish.workspace = true
 cedar-policy = "=4.14.1"
 regorus = "=0.15.0"
 serde_json.workspace = true
-regia-domain = { path = "../../core/domain" }
+regia-domain = { path = "../../core/domain", version = "0.0.0" }
 
 [dev-dependencies]
 proptest.workspace = true

@@ -1,16 +1,16 @@
 // Groups are entities so that `principal in resource.<group>` expresses circle roles.
-entity Owners in [AncOwners];
+entity Owners in [AncestorOwners];
 entity Members;
 entity Guests;
 entity Revoked;
-entity AncOwners;
+entity AncestorOwners;
 entity User in [Owners, Members, Guests, Revoked];
 entity Obj = {
   owners: Owners,
   members: Members,
   guests: Guests,
   revoked: Revoked,
-  anc_owners: AncOwners,
+  ancestor_owners: AncestorOwners,
   grantees: Set<User>,
   label?: String,
   owner?: User,
