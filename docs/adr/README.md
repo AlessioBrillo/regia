@@ -9,7 +9,7 @@ An ADR is accepted only with reproducible evidence from an [experiment](../exper
 | [002](002-data-model-source-of-truth.md) | Data model and source of truth | proposed | DAT-01 · G1 |
 | [003](003-sync-engine-conflict-semantics.md) | Sync engine and conflict semantics | proposed | DAT-01 · G1 |
 | [004](004-key-lifecycle-e2ee-mls.md) | Key lifecycle, E2EE and MLS | proposed | CRY-01 · G1 |
-| [005](005-policy-engine.md) | Policy engine and label taxonomy | proposed | POL-01 · G1 |
+| [005](005-policy-engine.md) | Policy engine and label taxonomy | proposed (Cedar trial, awaiting owner) | POL-01 · G1 |
 | [006](006-backend-modular-monolith.md) | Modular monolith, storage, backend API | proposed | After DAT-01, POL-01, WFE-01 · end of G1 |
 | [007](007-workflow-runtime.md) | State machine + outbox vs Temporal | proposed | WFE-01 · G1 |
 | [008](008-ai-gateway-task-router.md) | AI gateway and task router | proposed | [AI-01](../experiments/AI-01-ai-gateway-runtimes.md) · G1 |

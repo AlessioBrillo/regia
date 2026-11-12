@@ -1,0 +1,21 @@
+[package]
+name = "regia-spike-pol01"
+description = "POL-01 spike: Cedar vs OPA/Rego against a hand-written oracle. Throwaway; not a dependency of core/."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+cedar-policy = "=4.14.1"
+regorus = "=0.15.0"
+serde_json.workspace = true
+regia-domain = { path = "../../core/domain", version = "0.0.0" }
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

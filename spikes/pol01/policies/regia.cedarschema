@@ -1,0 +1,26 @@
+// Groups are entities so that `principal in resource.<group>` expresses circle roles.
+entity Owners in [AncestorOwners];
+entity Members;
+entity Guests;
+entity Revoked;
+entity AncestorOwners;
+entity User in [Owners, Members, Guests, Revoked];
+entity Obj = {
+  owners: Owners,
+  members: Members,
+  guests: Guests,
+  revoked: Revoked,
+  ancestor_owners: AncestorOwners,
+  grantees: Set<User>,
+  label?: String,
+  owner?: User,
+  category?: String,
+};
+
+action view, mutate;
+action read, discover in [view] appliesTo {
+  principal: [User], resource: [Obj], context: { untrusted: Bool, approved: Bool }
+};
+action create, update, delete, export, share, execute in [mutate] appliesTo {
+  principal: [User], resource: [Obj], context: { untrusted: Bool, approved: Bool }
+};

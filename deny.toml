@@ -10,6 +10,11 @@ allow = [
   "Apache-2.0",
   "MIT",
   "Unicode-3.0",
+  # Permissive, added for the POL-01 spike dependencies (cedar-policy, regorus):
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "MIT-0",
+  "Zlib",
 ]
 confidence-threshold = 0.9
 
