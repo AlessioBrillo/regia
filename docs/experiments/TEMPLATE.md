@@ -44,4 +44,4 @@ Alternatives first pass the minimum requirements; security is a **gate**, not an
 [`CRY-01`](CRY-01-group-keys-membership.md) group keys and membership ·
 [`POL-01`](POL-01-policy-engine.md) policy engine (Cedar vs OPA/Rego) ·
 [`WFE-01`](WFE-01-workflow-runtime.md) state machine vs Temporal (the report's "WF-01" spike, §4.7) ·
-AI evaluation harness per task family (card to come with WP4). All cards are plans; none has been executed.
+[`AI-01`](AI-01-ai-gateway-runtimes.md) AI gateway, router and runtimes. All cards are plans; none has been executed.
