@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 cedar-policy = "=4.14.1"
+regorus = "=0.15.0"
+serde_json.workspace = true
 regia-domain = { path = "../../core/domain" }
 
 [dev-dependencies]

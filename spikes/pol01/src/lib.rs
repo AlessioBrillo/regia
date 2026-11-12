@@ -5,6 +5,7 @@
 
 pub mod cedar;
 pub mod oracle;
+pub mod rego;
 
 use regia_domain::{CircleId, PrincipalId, Role};
 
@@ -178,5 +179,6 @@ pub fn engines() -> Vec<Box<dyn Engine>> {
     vec![
         Box::new(oracle::Oracle::new("v1")),
         Box::new(cedar::CedarEngine::new("v1").expect("bundled Cedar policies are valid")),
+        Box::new(rego::RegoEngine::new("v1").expect("bundled Rego policy is valid")),
     ]
 }

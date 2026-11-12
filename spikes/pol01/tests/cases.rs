@@ -368,3 +368,9 @@ fn p06_malformed_policy_yields_no_engine() {
     let bad = r#"permit (principal, action, resource) when { resource.nonexistent == "x" };"#;
     assert!(CedarEngine::from_sources(schema, bad, "bad").is_err());
 }
+
+#[test]
+fn p06_malformed_rego_yields_no_engine() {
+    use regia_spike_pol01::rego::RegoEngine;
+    assert!(RegoEngine::from_source("package x\nallow if {", "bad").is_err());
+}
