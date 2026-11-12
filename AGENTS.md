@@ -33,4 +33,4 @@ gitleaks, markdownlint, typos).
 ## Layout
 
 `core/domain` (crate `regia-domain`) · `docs/adr` · `docs/requirements` · `docs/risk-register.md` ·
-`docs/threat-model` · `docs/experiments`. `apps/`, `backend/`, `schemas/`, `evals/` do not exist yet by design.
+`docs/threat-model` · `docs/experiments` · `spikes/` (throwaway experiment code, never a dependency of `core/`). `apps/`, `backend/`, `schemas/`, `evals/` do not exist yet by design.
