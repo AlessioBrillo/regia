@@ -1,7 +1,7 @@
 # ADR-005 — Policy engine and label taxonomy
 
-- Status: proposed
-- Date: 2026-11-07
+- Status: accepted (trial)
+- Date: 2026-11-07 (accepted 2026-11-12)
 - Owner: Principal Engineer (area owners per [GOVERNANCE](../../GOVERNANCE.md))
 - Requirements: AR-04, AR-07, AR-15, R-03
 
@@ -21,7 +21,7 @@ Spike with nested Regìa policies, generated tests, decision explainability, ver
 
 ## Decision
 
-**Proposed, awaiting owner acceptance:** trial **Cedar** as the policy engine, keeping the hand-written oracle as a permanent differential-test fixture. Alternative C is not needed: both A and B passed the gate. Not ratified until the owner accepts this ADR on the PR (report §14.2).
+**Accepted by the owner on 2026-11-12 as a trial:** **Cedar** is the policy engine, keeping the hand-written oracle as a permanent differential-test fixture. Alternative C is not needed: both A and B passed the gate. "Trial" means the decision is reopened by the conditions below, not by preference.
 
 Constraint: engine unreachable or attribute missing means deny for high-risk actions; an error is never mapped to allow.
 
@@ -33,7 +33,7 @@ Constraint: engine unreachable or attribute missing means deny for high-risk act
 
 If accepted: policies live in Cedar with a schema and CI validation; the application layer builds the minimal entity graph (ancestor groups, revoked groups); any evaluation error is treated as deny (Cedar skips an erroring policy, and a skipped `forbid` would fail open); the oracle stays as a test fixture.
 
-Nested-circle rule fixed by the owner for this spike (P-03): only an `Owner` of an ancestor circle may read/discover child-circle objects labelled `circle`; `Member`/`Guest` of the parent get nothing; `restricted` and `secret` are never inherited. The label names and roles remain provisional until this ADR is accepted.
+Nested-circle rule fixed by the owner for this spike (P-03): only an `Owner` of an ancestor circle may read/discover child-circle objects labelled `circle`; `Member`/`Guest` of the parent get nothing; `restricted` and `secret` are never inherited. The label names and roles remain provisional until DAT-01 closes; they are frozen in ADR-002, not here.
 
 ## Migration / rollback
 

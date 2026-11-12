@@ -28,6 +28,16 @@ spikes. The first real integration must be read-only or low-risk, with test acco
 - [x] Answers to the open questions (above)
 - [x] ADR-001..012 each either accepted with evidence or explicitly scheduled ([ADR index](adr/README.md))
 
+## G1 checklist
+
+- [x] Policy engine: POL-01 executed, ADR-005 accepted as a Cedar trial (2026-11-12)
+- [ ] Storage and sync: DAT-01 executed → ADR-002, ADR-003 (then ADR-001)
+- [ ] Key management: CRY-01 → ADR-004
+- [ ] Client strategy: CL-01 → ADR-012
+- [ ] Workflow runtime: WFE-01 → ADR-007
+- [ ] AI gateway and runtimes: AI-01 → ADR-008, ADR-009
+- [ ] Backend shape: ADR-006, after DAT-01, POL-01 and WFE-01
+
 ## Owner answers to report §14.3 (2026-11-08)
 
 Recorded in detail, with the experiment that verifies each, in
