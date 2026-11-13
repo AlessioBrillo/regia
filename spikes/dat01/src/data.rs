@@ -55,20 +55,20 @@ impl Dataset {
         }
         let mut items = Vec::new();
         for (item, membership) in raw {
-            if let Some(m) = membership {
-                if let Some(&c) = circle_ix.get(&m.circle) {
-                    members.entry(m.principal).or_default().insert(c);
-                }
+            if let Some(m) = membership
+                && let Some(&c) = circle_ix.get(&m.circle)
+            {
+                members.entry(m.principal).or_default().insert(c);
             }
-            if let Some((h, title)) = item {
-                if let Some(&circle) = circle_ix.get(&h.circle) {
-                    items.push(Item {
-                        id: h.id.as_uuid().to_string(),
-                        circle,
-                        label: h.confidentiality,
-                        title,
-                    });
-                }
+            if let Some((h, title)) = item
+                && let Some(&circle) = circle_ix.get(&h.circle)
+            {
+                items.push(Item {
+                    id: h.id.as_uuid().to_string(),
+                    circle,
+                    label: h.confidentiality,
+                    title,
+                });
             }
         }
         Self {

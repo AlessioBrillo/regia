@@ -98,10 +98,13 @@ impl std::str::FromStr for Hlc {
     }
 }
 
+/// A value and the stamp it was written with.
+pub type Stamped<T> = (Hlc, T);
+
 /// The lww rule: among concurrent values (the heads of a register), the greatest [`Hlc`] wins and
 /// the rest are returned as losers, greatest first. `None` for an empty register.
 #[must_use]
-pub fn pick<T: Clone>(heads: &[(Hlc, T)]) -> Option<((Hlc, T), Vec<(Hlc, T)>)> {
+pub fn pick<T: Clone>(heads: &[Stamped<T>]) -> Option<(Stamped<T>, Vec<Stamped<T>>)> {
     let mut sorted = heads.to_vec();
     sorted.sort_by_key(|(h, _)| std::cmp::Reverse(*h));
     let mut it = sorted.into_iter();

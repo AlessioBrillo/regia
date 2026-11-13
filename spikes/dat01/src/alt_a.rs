@@ -8,7 +8,10 @@
 //! the history of those heads resurrects the object (S-05). Each commit's message is
 //! `"<object>\t<field>"`, which is how the changes unseen by a delete are attributed to objects.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write as _,
+};
 
 use automerge::{
     ActorId, AutoCommit, ChangeHash, ObjType, ROOT, ReadDoc,
@@ -40,6 +43,7 @@ pub struct AltA {
     index: Index,
 }
 
+#[allow(clippy::needless_pass_by_value)] // used as `.map_err(err)`, which passes the error by value
 fn err<E: ToString>(e: E) -> Error {
     e.to_string()
 }
@@ -340,9 +344,9 @@ impl Replica for AltA {
                 out.push_str(&String::from_utf8_lossy(&doc.save_nocompress()));
                 out.push('\n');
             }
-            out.push_str(&format!("{:?}\n", self.snapshot(c)));
+            let _ = writeln!(out, "{:?}", self.snapshot(c));
         }
-        out.push_str(&format!("{:?}\n", self.index));
+        let _ = writeln!(out, "{:?}", self.index);
         out
     }
 }

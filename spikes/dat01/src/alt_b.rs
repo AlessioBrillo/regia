@@ -4,6 +4,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fmt::Write as _,
     path::Path,
 };
 
@@ -429,12 +430,12 @@ impl Replica for AltB {
         let mut out = String::new();
         // Every row, not only held circles: a stray row of another circle is exactly the leak.
         for o in self.ops_where("1 = 1", params![]) {
-            out.push_str(&format!("{o:?}\n"));
+            let _ = writeln!(out, "{o:?}");
         }
         for c in self.circles.clone() {
-            out.push_str(&format!("{:?}\n", self.snapshot(c)));
+            let _ = writeln!(out, "{:?}", self.snapshot(c));
         }
-        out.push_str(&format!("{:?}\n", self.index));
+        let _ = writeln!(out, "{:?}", self.index);
         out
     }
 }

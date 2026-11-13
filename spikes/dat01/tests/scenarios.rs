@@ -494,14 +494,13 @@ fn s07_a_truncated_save_is_refused_or_a_prefix_and_always_resyncs() {
     let (mut refused, mut partial) = (0, 0);
     for cut in (0..bytes.len()).step_by(step) {
         let mut r = AltA::new(0, &[0]);
-        match r.load_circle(0, &bytes[..cut]) {
-            Err(_) => refused += 1,
-            Ok(()) => {
-                partial += 1;
-                for (id, view) in &r.snapshot(0).objects {
-                    assert!(full.objects.contains_key(id), "invented object {id}");
-                    assert!(view.fields.contains_key("title"), "torn object {id}");
-                }
+        if r.load_circle(0, &bytes[..cut]).is_err() {
+            refused += 1;
+        } else {
+            partial += 1;
+            for (id, view) in &r.snapshot(0).objects {
+                assert!(full.objects.contains_key(id), "invented object {id}");
+                assert!(view.fields.contains_key("title"), "torn object {id}");
             }
         }
         session(&mut r, &mut y, 0);

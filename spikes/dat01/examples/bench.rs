@@ -7,7 +7,15 @@
 //! Wall times are CPU time of in-process work. There is no network: "convergence" here is the
 //! time `sync_all` needs, a lower bound, not the 5 s target of the owner (which needs real links).
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::cast_precision_loss)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::many_single_char_names,
+    clippy::too_many_lines
+)]
 
 use std::{collections::BTreeMap, env, time::Instant};
 
@@ -86,7 +94,7 @@ fn run<R: Replica>(seed: u64, profile: &Profile, n: u32) -> Run {
 
     // Intent: every created object is present, with its title, on every member of its circle.
     let mut present = 0;
-    let mut expected = 0;
+    let mut expected = 0_usize;
     for (item, _) in &created {
         for d in sim.members(item.circle) {
             expected += 1;
@@ -145,7 +153,7 @@ fn run<R: Replica>(seed: u64, profile: &Profile, n: u32) -> Run {
 
     r.bytes = sim.bytes;
     r.messages = sim.messages;
-    let total_storage: usize = sim.clients.iter_mut().map(|c| c.storage_bytes()).sum();
+    let total_storage: usize = sim.clients.iter_mut().map(R::storage_bytes).sum();
     r.storage_per_op = total_storage as f64 / r.ops.max(1) as f64;
     let t = Instant::now();
     sim.clients[0].rebuild_index();
