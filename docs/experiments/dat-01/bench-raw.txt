@@ -1,0 +1,121 @@
+reps=10 (seeds 1..=10) profile=Some("small") clients=Some(2); times are in-process CPU, no network
+adapter LOC (non-blank, non-comment): A=282 B=350
+
+RAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct
+RAW A small 2 1 42.9 225.2 0.0 0.1 0 0 95 0.34 0 0 100.00
+RAW B small 2 1 38.1 126.3 0.0 0.0 0 0 745 0.07 0 0 100.00
+RAW A small 2 2 73.0 190.9 2.8 7.6 8089 32 96 0.76 12 12 100.00
+RAW B small 2 2 38.2 85.8 0.7 12.6 8191 24 704 0.17 12 12 100.00
+RAW A small 2 3 63.2 342.8 12.5 2.7 4056 16 94 0.40 6 6 100.00
+RAW B small 2 3 36.4 97.6 0.4 1.1 4101 12 840 0.14 6 6 100.00
+RAW A small 2 4 62.3 276.5 1.7 14.5 7883 32 92 10.03 12 12 100.00
+RAW B small 2 4 34.3 118.2 1.9 2.4 8038 24 803 0.17 12 12 100.00
+RAW A small 2 5 69.4 196.6 11.3 14.3 7951 32 95 0.55 12 12 100.00
+RAW B small 2 5 33.9 58.6 11.7 2.4 8060 24 719 0.15 12 12 100.00
+RAW A small 2 6 65.7 193.2 2.6 17.1 11818 48 94 0.36 18 18 100.00
+RAW B small 2 6 34.7 264.1 2.0 3.3 12008 36 772 0.14 18 18 100.00
+RAW A small 2 7 64.7 194.8 1.9 5.3 8118 32 98 9.55 12 12 100.00
+RAW B small 2 7 35.6 84.9 0.7 2.1 8224 24 931 0.15 12 12 100.00
+RAW A small 2 8 66.2 174.7 0.9 12.7 4056 16 96 0.22 6 6 100.00
+RAW B small 2 8 36.6 112.1 0.4 1.2 4101 12 728 0.10 6 6 100.00
+RAW A small 2 9 74.0 137.1 11.0 13.0 4077 16 95 0.25 6 6 100.00
+RAW B small 2 9 33.5 60.7 0.4 1.2 4123 12 840 0.08 6 6 100.00
+RAW A small 2 10 70.3 147.5 1.8 14.9 8126 32 97 0.32 12 12 100.00
+RAW B small 2 10 34.4 76.3 0.7 2.5 8224 24 719 0.22 12 12 100.00
+
+SUMMARY (median / p95 over seeds)
+alt profile clients | write p50 us | write p95 us | sync ms med/p95 | resync ms med | bytes med | storage B/op | rebuild ms | conflicts/forced | intent %
+A small 2 | 66 | 225 | 3/13 | 13 | 7951 | 95 | 0.4 | 12/12 | 100.00
+B small 2 | 36 | 115 | 1/12 | 2 | 8060 | 772 | 0.1 | 12/12 | 100.00
+EXIT small 2 = 0
+reps=10 (seeds 1..=10) profile=Some("small") clients=Some(5); times are in-process CPU, no network
+adapter LOC (non-blank, non-comment): A=282 B=350
+
+RAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct
+RAW A small 5 1 136.4 255.7 16.9 29.7 43194 180 121 0.27 36 36 100.00
+RAW B small 5 1 44.8 398.0 9.9 10.7 37592 132 1097 0.07 36 36 100.00
+RAW A small 5 2 50.1 182.7 15.5 47.4 70483 300 147 0.51 36 36 100.00
+RAW B small 5 2 38.3 167.2 11.2 15.2 52894 219 1170 0.18 36 36 100.00
+RAW A small 5 3 61.4 146.1 7.7 28.1 43483 180 121 0.52 36 36 100.00
+RAW B small 5 3 37.5 121.0 12.3 17.7 37909 132 1170 0.21 36 36 100.00
+RAW A small 5 4 60.7 97.5 18.0 30.0 40461 172 147 0.38 18 18 100.00
+RAW B small 5 4 36.0 103.6 4.1 12.8 30967 125 1240 0.16 18 18 100.00
+RAW A small 5 5 72.7 126.2 17.5 29.9 64038 272 152 0.40 30 30 100.00
+RAW B small 5 5 35.4 75.0 5.0 27.1 48173 198 1229 0.17 30 30 100.00
+RAW A small 5 6 62.9 140.9 8.3 20.2 53437 228 148 6.38 24 24 100.00
+RAW B small 5 6 36.0 68.8 4.2 29.0 39560 166 1210 0.16 24 24 100.00
+RAW A small 5 7 64.3 99.5 16.4 22.0 48847 212 158 4.04 18 18 100.00
+RAW B small 5 7 35.5 121.7 3.9 7.2 35732 154 1347 0.17 18 18 100.00
+RAW A small 5 8 60.9 190.9 18.5 59.7 45394 192 120 0.27 36 36 100.00
+RAW B small 5 8 35.9 119.1 3.6 8.7 38128 141 1134 0.15 36 36 100.00
+RAW A small 5 9 60.9 87.9 16.4 32.2 47039 200 138 0.64 24 24 100.00
+RAW B small 5 9 43.6 81.8 4.7 18.4 35081 146 1210 0.12 24 24 100.00
+RAW A small 5 10 84.9 262.3 8.7 39.0 56298 236 138 0.38 36 36 100.00
+RAW B small 5 10 38.0 70.7 7.3 33.5 46813 172 1134 0.22 36 36 100.00
+
+SUMMARY (median / p95 over seeds)
+alt profile clients | write p50 us | write p95 us | sync ms med/p95 | resync ms med | bytes med | storage B/op | rebuild ms | conflicts/forced | intent %
+A small 5 | 65 | 195 | 16/18 | 30 | 48847 | 147 | 0.5 | 36/36 | 100.00
+B small 5 | 37 | 122 | 5/12 | 18 | 38128 | 1210 | 0.2 | 36/36 | 100.00
+EXIT small 5 = 0
+reps=10 (seeds 1..=10) profile=Some("large") clients=Some(2); times are in-process CPU, no network
+adapter LOC (non-blank, non-comment): A=282 B=350
+
+RAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct
+RAW A large 2 1 97.7 293.7 0.0 0.0 0 0 41 11.42 0 0 100.00
+RAW B large 2 1 103.8 264.6 0.0 0.0 0 0 385 2.15 0 0 100.00
+RAW A large 2 2 94.4 153.4 0.0 0.0 0 0 41 13.17 0 0 100.00
+RAW B large 2 2 98.1 260.1 0.0 0.0 0 0 377 2.82 0 0 100.00
+RAW A large 2 3 105.7 237.0 0.0 0.0 0 0 41 18.37 0 0 100.00
+RAW B large 2 3 55.7 165.9 0.0 0.7 0 0 369 8.60 0 0 100.00
+RAW A large 2 4 102.5 253.2 0.0 0.0 0 0 41 19.23 0 0 100.00
+RAW B large 2 4 96.8 231.3 0.0 0.0 0 0 377 2.71 0 0 100.00
+RAW A large 2 5 102.4 298.9 0.0 0.0 0 0 41 20.74 0 0 100.00
+RAW B large 2 5 143.3 266.0 0.0 0.0 0 0 377 2.27 0 0 100.00
+RAW A large 2 6 120.8 282.2 81.2 229.4 29905 16 40 12.49 150 150 100.00
+RAW B large 2 6 135.1 573.2 24.3 190.8 99108 12 435 1.92 150 150 100.00
+RAW A large 2 7 177.5 821.2 0.0 0.0 0 0 41 16.10 0 0 100.00
+RAW B large 2 7 167.8 920.9 0.0 0.0 0 0 397 4.70 0 0 100.00
+RAW A large 2 8 153.5 738.5 0.0 0.1 0 0 42 41.89 0 0 100.00
+RAW B large 2 8 145.8 687.1 0.0 0.0 0 0 360 12.32 0 0 100.00
+RAW A large 2 9 108.1 398.5 0.0 0.0 0 0 41 48.65 0 0 100.00
+RAW B large 2 9 94.8 166.4 0.0 0.0 0 0 369 14.38 0 0 100.00
+RAW A large 2 10 95.8 180.3 0.0 0.0 0 0 41 27.72 0 0 100.00
+RAW B large 2 10 86.0 158.5 0.0 0.0 0 0 372 12.40 0 0 100.00
+
+SUMMARY (median / p95 over seeds)
+alt profile clients | write p50 us | write p95 us | sync ms med/p95 | resync ms med | bytes med | storage B/op | rebuild ms | conflicts/forced | intent %
+A large 2 | 110 | 324 | 0/81 | 0 | 0 | 41 | 19.2 | 0/0 | 100.00
+B large 2 | 107 | 282 | 0/24 | 0 | 0 | 377 | 4.7 | 0/0 | 100.00
+EXIT large 2 = 0
+reps=10 (seeds 1..=10) profile=Some("large") clients=Some(5); times are in-process CPU, no network
+adapter LOC (non-blank, non-comment): A=282 B=350
+
+RAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct
+RAW A large 5 1 176.3 690.0 0.0 6.0 0 0 41 37.19 0 0 100.00
+RAW B large 5 1 154.9 310.6 0.0 0.1 0 0 374 2.44 0 0 100.00
+RAW A large 5 2 163.9 476.8 87.6 265.4 59618 32 43 23.26 200 200 100.00
+RAW B large 5 2 149.1 351.6 61.6 297.2 166447 24 417 2.41 200 200 100.00
+RAW A large 5 3 168.1 615.8 93.8 198.0 59672 32 43 42.72 200 200 100.00
+RAW B large 5 3 96.6 366.7 32.3 151.3 166358 24 415 5.65 200 200 100.00
+RAW A large 5 4 126.2 573.7 0.0 0.1 0 0 42 14.29 0 0 100.00
+RAW B large 5 4 105.6 299.4 0.0 0.1 0 0 376 7.02 0 0 100.00
+RAW A large 5 5 105.5 204.7 27.2 227.5 30056 16 41 20.67 150 150 100.00
+RAW B large 5 5 115.7 362.0 12.5 119.5 99120 12 401 2.38 150 150 100.00
+RAW A large 5 6 110.6 308.3 37.8 179.9 59624 32 43 6.14 200 200 100.00
+RAW B large 5 6 103.2 352.9 31.8 110.4 166356 24 433 1.25 200 200 100.00
+RAW A large 5 7 104.2 312.6 0.0 0.1 0 0 41 18.04 0 0 100.00
+RAW B large 5 7 137.2 462.6 0.0 0.1 0 0 383 11.87 0 0 100.00
+RAW A large 5 8 162.3 411.8 198.5 255.7 69695 44 45 26.22 200 200 100.00
+RAW B large 5 8 144.3 321.9 100.8 466.7 217487 34 430 16.65 200 200 100.00
+RAW A large 5 9 179.1 748.9 0.0 0.1 0 0 41 56.94 0 0 100.00
+RAW B large 5 9 159.0 504.8 0.0 0.1 0 0 384 7.03 0 0 100.00
+RAW A large 5 10 174.4 595.0 56.3 376.9 29891 16 41 31.11 150 150 100.00
+RAW B large 5 10 159.9 370.4 36.0 151.2 99026 12 399 2.03 150 150 100.00
+
+SUMMARY (median / p95 over seeds)
+alt profile clients | write p50 us | write p95 us | sync ms med/p95 | resync ms med | bytes med | storage B/op | rebuild ms | conflicts/forced | intent %
+A large 5 | 157 | 478 | 38/198 | 198 | 30056 | 42 | 26.2 | 150/150 | 100.00
+B large 5 | 131 | 361 | 32/101 | 119 | 99120 | 401 | 5.7 | 150/150 | 100.00
+EXIT large 5 = 0
+FINISHED

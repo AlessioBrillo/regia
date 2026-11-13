@@ -120,12 +120,14 @@ fn loc(src: &str) -> usize {
 
 fn main() {
     let reps: u64 = env::args().nth(1).and_then(|a| a.parse().ok()).unwrap_or(10);
-    println!("reps={reps} (seeds 1..={reps}); times are in-process CPU, no network");
+    let only_profile = env::args().nth(2);
+    let only_n: Option<u32> = env::args().nth(3).and_then(|a| a.parse().ok());
+    println!("reps={reps} (seeds 1..={reps}) profile={only_profile:?} clients={only_n:?}; times are in-process CPU, no network");
     println!("adapter LOC (non-blank, non-comment): A={} B={}", loc(include_str!("../src/alt_a.rs")), loc(include_str!("../src/alt_b.rs")));
     println!("\nRAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct");
     let mut all: BTreeMap<(String, &str, u32), Vec<Run>> = BTreeMap::new();
-    for (name, profile) in [("small", &SMALL), ("large", &LARGE)] {
-        for n in [2u32, 5] {
+    for (name, profile) in [("small", &SMALL), ("large", &LARGE)].into_iter().filter(|(n, _)| only_profile.as_deref().is_none_or(|p| p == *n)) {
+        for n in [2u32, 5].into_iter().filter(|n| only_n.is_none_or(|o| o == *n)) {
             for seed in 1..=reps {
                 for alt in ["A", "B"] {
                     let r = if alt == "A" { run::<AltA>(seed, profile, n) } else { run::<AltB>(seed, profile, n) };
