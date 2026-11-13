@@ -93,22 +93,24 @@ fn run<R: Replica>(seed: u64, profile: &Profile, n: u32) -> Run {
     r.sync_ms = t.elapsed().as_secs_f64() * 1e3;
 
     // Intent: every created object is present, with its title, on every member of its circle.
+    // One snapshot per (circle, member), not per item.
     let mut present = 0;
     let mut expected = 0_usize;
-    for (item, _) in &created {
-        for d in sim.members(item.circle) {
-            expected += 1;
-            let snap = sim.clients[d as usize].snapshot(item.circle);
-            present += usize::from(
-                snap.objects
-                    .get(&item.id)
-                    .is_some_and(|v| v.fields.get("title") == Some(&item.title)),
-            );
+    for c in 0..ds.circles {
+        for d in sim.members(c) {
+            let snap = sim.clients[d as usize].snapshot(c);
+            for (item, _) in created.iter().filter(|(i, _)| i.circle == c) {
+                expected += 1;
+                present += usize::from(
+                    snap.objects
+                        .get(&item.id)
+                        .is_some_and(|v| v.fields.get("title") == Some(&item.title)),
+                );
+            }
         }
     }
 
     // Force one same-field conflict on up to 200 objects shared by two devices.
-    let t_conflict = Instant::now();
     let shared: Vec<_> = created
         .iter()
         .filter(|(i, _)| sim.members(i.circle).len() >= 2)
@@ -140,8 +142,9 @@ fn run<R: Replica>(seed: u64, profile: &Profile, n: u32) -> Run {
         r.forced += 1;
         r.ops += 2;
     }
+    let t_resync = Instant::now(); // after the forced writes: sync time only
     sim.sync_all().unwrap();
-    r.resync_ms = t_conflict.elapsed().as_secs_f64() * 1e3;
+    r.resync_ms = t_resync.elapsed().as_secs_f64() * 1e3;
     r.conflicts = (0..ds.circles)
         .filter_map(|c| {
             sim.members(c)
@@ -202,11 +205,11 @@ fn main() {
                     } else {
                         run::<AltB>(seed, profile, n)
                     };
-                    let (mut w1, mut w2) = (r.write_us.clone(), r.write_us.clone());
+                    let mut w = r.write_us.clone();
                     println!(
                         "RAW {alt} {name} {n} {seed} {:.1} {:.1} {:.1} {:.1} {} {} {:.0} {:.2} {} {} {:.2}",
-                        pct(&mut w1, 0.5),
-                        pct(&mut w2, 0.95),
+                        pct(&mut w, 0.5),
+                        pct(&mut w, 0.95),
                         r.sync_ms,
                         r.resync_ms,
                         r.bytes,

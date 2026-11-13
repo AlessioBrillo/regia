@@ -251,6 +251,23 @@ impl AltB {
         if let Some(bad) = ops.iter().find(|o| o.hlc.parse::<Hlc>().is_err()) {
             return Err(format!("malformed stamp {:?}", bad.hlc));
         }
+        // Each author's log must arrive without holes: `vv` (and so every coverage decision)
+        // assumes it. Ops we already have are fine; a gap is refused, never imported.
+        let mut next = self.vv(circle);
+        let mut sorted: Vec<&WireOp> = ops.iter().collect();
+        sorted.sort_by_key(|o| (o.dev, o.seq));
+        for o in sorted {
+            let have = next.get(&o.dev).copied().unwrap_or(0);
+            if o.seq > have {
+                if o.seq != have + 1 {
+                    return Err(format!(
+                        "gap in the log of device {}: have {have}, got {}",
+                        o.dev, o.seq
+                    ));
+                }
+                next.insert(o.dev, o.seq);
+            }
+        }
         let tx = sql(self.conn.transaction())?;
         let mut added = 0;
         for o in ops {
@@ -349,7 +366,11 @@ impl Replica for AltB {
                 value,
                 vv: vv.clone(),
             };
-            Self::insert(&tx, circle, &o)?;
+            // `INSERT OR IGNORE` would hide a collision (e.g. a failed `vv` read reusing a
+            // sequence number) and drop the user's write while reporting success.
+            if Self::insert(&tx, circle, &o)? != 1 {
+                return Err(format!("op ({}, {seq}) was not stored", self.device));
+            }
             vv.insert(self.device, seq);
         }
         sql(tx.commit())?;
@@ -377,6 +398,12 @@ impl Replica for AltB {
     }
 
     fn receive(&mut self, circle: Circle, st: &mut BSync, msg: &[u8]) -> Result<bool, Error> {
+        if !self.circles.contains(&circle) {
+            return Err(format!(
+                "circle {circle} is not held by device {}",
+                self.device
+            ));
+        }
         match serde_json::from_slice::<Msg>(msg).map_err(|e| e.to_string())? {
             Msg::Have(vv) => {
                 st.peer_vv = Some(vv);

@@ -78,10 +78,15 @@ impl Dataset {
         }
     }
 
-    /// Circles device `d` belongs to: the circles of principal `d % P`.
+    /// Circles device `d` belongs to: those of the `(d % P)`-th principal *that holds at least one
+    /// membership*, in id order (principals without a membership are not in `member_of`).
     #[must_use]
     pub fn circles_of(&self, d: Device) -> BTreeSet<Circle> {
-        self.member_of[d as usize % self.member_of.len()].clone()
+        let n = self.member_of.len().max(1);
+        self.member_of
+            .get(d as usize % n)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// Devices (of `0..n`) that belong to `circle`.

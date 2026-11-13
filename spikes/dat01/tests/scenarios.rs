@@ -509,6 +509,50 @@ fn s07_a_truncated_save_is_refused_or_a_prefix_and_always_resyncs() {
     assert!(refused + partial > 0);
 }
 
+// --- Isolation, enforced by the replica itself -----------------------------------------------
+
+/// The simulator never connects non-members, so `assert_no_leak` alone would pass by construction.
+/// Here genuine messages of a circle are delivered directly to a replica that does not hold it.
+fn foreign_circle_messages_are_refused<R: Replica>() {
+    let mut y = R::new(1, &[0, 1]);
+    let fields = BTreeMap::from([("title".to_owned(), "CANARY-iso-1".to_owned())]);
+    y.apply_local(
+        1,
+        Op::Create {
+            obj: "o".into(),
+            fields,
+        },
+        10,
+    )
+    .unwrap();
+    let mut z = R::new(2, &[1]);
+    let (mut sy, mut sz) = (R::Sync::default(), R::Sync::default());
+    let mut captured = Vec::new();
+    for _ in 0..8 {
+        let (my, mz) = (y.generate(1, &mut sy), z.generate(1, &mut sz));
+        if my.is_none() && mz.is_none() {
+            break;
+        }
+        if let Some(m) = my {
+            captured.push(m.clone());
+            z.receive(1, &mut sz, &m).unwrap();
+        }
+        if let Some(m) = mz {
+            y.receive(1, &mut sy, &m).unwrap();
+        }
+    }
+    assert!(captured.len() >= 2, "need the handshake and the data");
+    let mut x = R::new(0, &[0]);
+    let mut sx = R::Sync::default();
+    for m in &captured {
+        assert!(
+            x.receive(1, &mut sx, m).is_err(),
+            "a foreign-circle message was accepted"
+        );
+    }
+    assert!(!x.dump_text().contains("CANARY-iso-1"));
+}
+
 // --- Differential property ---------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -636,4 +680,5 @@ for_both!(
     s04_delete_then_restore_equals_before,
     s05_edit_unseen_by_delete_resurrects_and_notifies,
     s11_index_rebuild_is_identical,
+    foreign_circle_messages_are_refused,
 );

@@ -82,18 +82,19 @@ impl std::str::FromStr for Hlc {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        let mut it = s.split('.');
-        let mut part = |what: &str| {
-            it.next()
-                .ok_or_else(|| format!("hlc: missing {what}"))
-                .map(str::to_owned)
+        let parts: Vec<&str> = s.split('.').collect();
+        let [ms, counter, device] = parts[..] else {
+            return Err(format!("hlc: expected 3 parts in {s:?}"));
         };
-        let (ms, counter, device) = (part("ms")?, part("counter")?, part("device")?);
+        // Canonical width only: text order must equal `Ord`.
+        if (ms.len(), counter.len(), device.len()) != (16, 8, 8) {
+            return Err(format!("hlc: non-canonical width in {s:?}"));
+        }
         let bad = |e: std::num::ParseIntError| format!("hlc: {e}");
         Ok(Self {
-            ms: u64::from_str_radix(&ms, 16).map_err(bad)?,
-            counter: u32::from_str_radix(&counter, 16).map_err(bad)?,
-            device: u32::from_str_radix(&device, 16).map_err(bad)?,
+            ms: u64::from_str_radix(ms, 16).map_err(bad)?,
+            counter: u32::from_str_radix(counter, 16).map_err(bad)?,
+            device: u32::from_str_radix(device, 16).map_err(bad)?,
         })
     }
 }
