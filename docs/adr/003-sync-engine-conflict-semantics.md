@@ -27,7 +27,7 @@ Constraint: not every field is a natural CRDT; explicit conflicts are allowed wh
 
 ## Evidence
 
-None yet. Benchmark plan and synthetic dataset: [DAT-01](../experiments/DAT-01-data-model-sync.md) (planned, not executed).
+Partial, increment 1 of [DAT-01](../experiments/DAT-01-data-model-sync.md): [results 2026-11-13](../experiments/dat-01/results-2026-11-13.md). Both alternatives met the spike rules (S-03 lww with visible conflict, S-05 resurrect with notice) and the isolation gate; no recommendation yet. The conflict rules were fixed by the owner for the spike only (2026-11-12) and are not ratified here. Revocation while offline (S-09), migration, backlog and alternative C are increment 2.
 
 ## Consequences
 

@@ -14,6 +14,9 @@ pub mod id;
 pub mod label;
 pub mod object;
 pub mod provenance;
+/// Deterministic synthetic datasets (DAT-01). Feature `synthetic`; never a production dependency.
+#[cfg(feature = "synthetic")]
+pub mod synthetic;
 pub mod visibility;
 
 pub use entity::{

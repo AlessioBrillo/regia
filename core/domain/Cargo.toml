@@ -18,9 +18,13 @@ uuid.workspace = true
 proptest.workspace = true
 serde_json.workspace = true
 
+[features]
+# Deterministic synthetic datasets for experiments (DAT-01). Off by default.
+synthetic = []
+
 [[example]]
 name = "dat01"
-test = true # `cargo test --workspace` (the CI gate) also runs the dataset's invariants
+required-features = ["synthetic"]
 
 [lints]
 workspace = true

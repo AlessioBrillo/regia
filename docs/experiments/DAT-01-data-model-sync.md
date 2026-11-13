@@ -1,6 +1,6 @@
 # DAT-01 — Data model and sync benchmark
 
-Status: **plan, not executed.** No result below is a measurement; no alternative is selected. Report §4.3, §4.4, §7.3.
+Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Not executed yet: S-06, S-08, S-09, S-10, S-12 and alternative C (increment 2). No alternative is selected. Report §4.3, §4.4, §7.3.
 Feeds ADR-002 and ADR-003. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
@@ -25,6 +25,21 @@ Linked ADR:                      ADR-002, ADR-003
 Conditions that would reopen:    A scenario outside S-01..S-12 loses data silently; a new candidate
                                  library; a change of the schema's authority model
 ```
+
+## Conflict rules fixed by the owner for this spike (2026-11-12)
+
+Fixed so that every alternative is judged against the same behaviour. They are **spike constraints**, not ratified
+semantics: they become decisions only through ADR-003 accepted with evidence.
+
+- **S-03, same field edited concurrently:** the write with the greatest hybrid logical clock wins (ties broken by device
+  id). Every other concurrent value stays visible as a conflict until someone writes the field again; writing the lost
+  value back restores it. No silent loss.
+- **S-05, delete vs an edit the delete had not seen:** the edit resurrects the object and the deleter gets a notice.
+  An edit made after seeing the delete is refused, as the object is deleted until restored (S-04).
+
+Harness: [`spikes/dat01`](../../spikes/dat01). Increment 1 runs both alternatives through one trait and one
+deterministic simulator, over the synthetic dataset, with a differential property test (same history on A and B must
+give the same visible state) and the canary scan after every workload.
 
 ## Questions the spike must answer (report §4.3)
 
