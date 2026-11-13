@@ -32,7 +32,12 @@ impl<R: Replica> Sim<R> {
         let clients = scope
             .iter()
             .enumerate()
-            .map(|(d, s)| R::new(u32::try_from(d).unwrap_or(u32::MAX), &s.iter().copied().collect::<Vec<_>>()))
+            .map(|(d, s)| {
+                R::new(
+                    u32::try_from(d).unwrap_or(u32::MAX),
+                    &s.iter().copied().collect::<Vec<_>>(),
+                )
+            })
             .collect();
         Self {
             online: vec![true; scope.len()],
@@ -101,7 +106,9 @@ impl<R: Replica> Sim<R> {
                 changed |= self.clients[ai].receive(circle, &mut sa, &m)?;
             }
         }
-        Err(format!("session {a}<->{b} on circle {circle} did not settle"))
+        Err(format!(
+            "session {a}<->{b} on circle {circle} did not settle"
+        ))
     }
 
     /// Full-mesh sync of every online pair until a whole pass changes nothing.

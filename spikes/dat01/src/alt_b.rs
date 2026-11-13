@@ -164,7 +164,10 @@ impl AltB {
     }
 
     fn ops_where(&self, filter: &str, args: impl rusqlite::Params) -> Vec<WireOp> {
-        let Ok(mut st) = self.conn.prepare_cached(&format!("{SELECT_OPS} WHERE {filter}")) else {
+        let Ok(mut st) = self
+            .conn
+            .prepare_cached(&format!("{SELECT_OPS} WHERE {filter}"))
+        else {
             return vec![];
         };
         st.query_map(args, row_to_op)
@@ -181,9 +184,14 @@ impl AltB {
         else {
             return Vv::new();
         };
-        st.query_map([db(circle)], |r| Ok((r.get::<_, Device>(0)?, u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0))))
-            .map(|rows| rows.flatten().collect())
-            .unwrap_or_default()
+        st.query_map([db(circle)], |r| {
+            Ok((
+                r.get::<_, Device>(0)?,
+                u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0),
+            ))
+        })
+        .map(|rows| rows.flatten().collect())
+        .unwrap_or_default()
     }
 
     /// Ops of `circle` the holder of `have` lacks, in author/sequence order.
@@ -219,13 +227,25 @@ impl AltB {
         sql(tx.execute(
             "INSERT OR IGNORE INTO ops(circle, dev, seq, hlc, obj, field, value, vv)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![db(circle), o.dev, db(o.seq), o.hlc, o.obj, o.field, o.value, vv],
+            params![
+                db(circle),
+                o.dev,
+                db(o.seq),
+                o.hlc,
+                o.obj,
+                o.field,
+                o.value,
+                vv
+            ],
         ))
     }
 
     fn import(&mut self, circle: Circle, ops: &[WireOp]) -> Result<bool, Error> {
         if !self.circles.contains(&circle) {
-            return Err(format!("circle {circle} is not held by device {}", self.device));
+            return Err(format!(
+                "circle {circle} is not held by device {}",
+                self.device
+            ));
         }
         if let Some(bad) = ops.iter().find(|o| o.hlc.parse::<Hlc>().is_err()) {
             return Err(format!("malformed stamp {:?}", bad.hlc));
@@ -248,7 +268,12 @@ impl AltB {
     ///
     /// `ponytail:` an abort, not a power cut. A killed process is covered by SQLite's journal,
     /// which this spike does not re-test; add a child-process kill test if ADR-002 picks SQLite.
-    pub fn abandon_import(&mut self, circle: Circle, ops: &[WireOp], apply: usize) -> Result<(), Error> {
+    pub fn abandon_import(
+        &mut self,
+        circle: Circle,
+        ops: &[WireOp],
+        apply: usize,
+    ) -> Result<(), Error> {
         let tx = sql(self.conn.transaction())?;
         for o in ops.iter().take(apply) {
             Self::insert(&tx, circle, o)?;
@@ -272,7 +297,10 @@ impl Replica for AltB {
 
     fn apply_local(&mut self, circle: Circle, op: Op, now_ms: u64) -> Result<(), Error> {
         if !self.circles.contains(&circle) {
-            return Err(format!("circle {circle} is not held by device {}", self.device));
+            return Err(format!(
+                "circle {circle} is not held by device {}",
+                self.device
+            ));
         }
         let (obj, writes) = match op {
             Op::Create { obj, fields } => {

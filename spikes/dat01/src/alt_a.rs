@@ -79,7 +79,8 @@ fn derive(doc: &mut AutoCommit, obj: &str) -> Option<(ObjView, Vec<Conflict>, Op
         };
         if key == DELETED {
             if let Some(seen) = win.strip_prefix("1|") {
-                let seen: Vec<ChangeHash> = seen.split(',').filter_map(|h| h.parse().ok()).collect();
+                let seen: Vec<ChangeHash> =
+                    seen.split(',').filter_map(|h| h.parse().ok()).collect();
                 let resurrected = doc.get_changes(&seen).iter().any(|c| {
                     c.message()
                         .and_then(|m| m.split_once('\t'))
@@ -148,9 +149,12 @@ impl AltA {
             .ok_or_else(|| format!("no such object {obj}"))?;
         for (field, value) in writes {
             clock = clock.tick(now_ms, device);
-            doc.put(&id, field.as_str(), encode(clock, value)).map_err(err)?;
+            doc.put(&id, field.as_str(), encode(clock, value))
+                .map_err(err)?;
         }
-        doc.commit_with(CommitOptions::default().with_message(format!("{obj}\t{field_for_message}")));
+        doc.commit_with(
+            CommitOptions::default().with_message(format!("{obj}\t{field_for_message}")),
+        );
         self.clock = clock;
         Ok(())
     }
@@ -201,7 +205,8 @@ impl Replica for AltA {
                 if doc.get(ROOT, obj.as_str()).map_err(err)?.is_some() {
                     return Err(format!("object {obj} exists"));
                 }
-                doc.put_object(ROOT, obj.as_str(), ObjType::Map).map_err(err)?;
+                doc.put_object(ROOT, obj.as_str(), ObjType::Map)
+                    .map_err(err)?;
                 let writes: Vec<_> = fields.into_iter().collect();
                 self.put_stamped(circle, &obj, &writes, now_ms, "*")?;
                 obj
@@ -227,14 +232,26 @@ impl Replica for AltA {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(",");
-                self.put_stamped(circle, &obj, &[(DELETED.to_owned(), format!("1|{seen}"))], now_ms, DELETED)?;
+                self.put_stamped(
+                    circle,
+                    &obj,
+                    &[(DELETED.to_owned(), format!("1|{seen}"))],
+                    now_ms,
+                    DELETED,
+                )?;
                 obj
             }
             Op::Restore { obj } => {
                 if !self.view_of(circle, &obj)?.deleted {
                     return Err(format!("object {obj} is not deleted"));
                 }
-                self.put_stamped(circle, &obj, &[(DELETED.to_owned(), "0".to_owned())], now_ms, DELETED)?;
+                self.put_stamped(
+                    circle,
+                    &obj,
+                    &[(DELETED.to_owned(), "0".to_owned())],
+                    now_ms,
+                    DELETED,
+                )?;
                 obj
             }
         };
@@ -244,7 +261,9 @@ impl Replica for AltA {
 
     fn generate(&mut self, circle: Circle, st: &mut ASync) -> Option<Vec<u8>> {
         let doc = self.docs.get_mut(&circle)?;
-        doc.sync().generate_sync_message(&mut st.0).map(sync::Message::encode)
+        doc.sync()
+            .generate_sync_message(&mut st.0)
+            .map(sync::Message::encode)
     }
 
     fn receive(&mut self, circle: Circle, st: &mut ASync, msg: &[u8]) -> Result<bool, Error> {
@@ -257,7 +276,9 @@ impl Replica for AltA {
         };
         let before = heads(doc);
         let before_hashes = doc.get_heads();
-        doc.sync().receive_sync_message(&mut st.0, message).map_err(err)?;
+        doc.sync()
+            .receive_sync_message(&mut st.0, message)
+            .map_err(err)?;
         let after = heads(doc);
         if before == after {
             return Ok(false);

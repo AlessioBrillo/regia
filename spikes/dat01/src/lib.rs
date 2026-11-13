@@ -70,7 +70,11 @@ impl Hlc {
 impl fmt::Display for Hlc {
     /// Fixed-width hex: lexicographic order of the text equals [`Ord`].
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:016x}.{:08x}.{:08x}", self.ms, self.counter, self.device)
+        write!(
+            f,
+            "{:016x}.{:08x}.{:08x}",
+            self.ms, self.counter, self.device
+        )
     }
 }
 
@@ -222,9 +226,21 @@ mod tests {
 
     #[test]
     fn hlc_text_roundtrip_and_order() {
-        let a = Hlc { ms: 5, counter: 0, device: 1 };
-        let b = Hlc { ms: 5, counter: 0, device: 2 };
-        let c = Hlc { ms: 255, counter: 3, device: 0 };
+        let a = Hlc {
+            ms: 5,
+            counter: 0,
+            device: 1,
+        };
+        let b = Hlc {
+            ms: 5,
+            counter: 0,
+            device: 2,
+        };
+        let c = Hlc {
+            ms: 255,
+            counter: 3,
+            device: 0,
+        };
         for h in [a, b, c] {
             assert_eq!(h, h.to_string().parse().unwrap());
         }
@@ -234,7 +250,11 @@ mod tests {
 
     #[test]
     fn tick_never_goes_backwards() {
-        let h = Hlc { ms: 10, counter: 0, device: 1 };
+        let h = Hlc {
+            ms: 10,
+            counter: 0,
+            device: 1,
+        };
         assert!(h.tick(5, 1) > h);
         assert!(h.tick(11, 1) > h);
         assert_eq!(h.tick(10, 1).counter, 1);
@@ -242,10 +262,17 @@ mod tests {
 
     #[test]
     fn pick_greatest_hlc_wins_ties_by_device() {
-        let h = |ms, device| Hlc { ms, counter: 0, device };
+        let h = |ms, device| Hlc {
+            ms,
+            counter: 0,
+            device,
+        };
         let ((w, v), losers) = pick(&[(h(1, 9), "old"), (h(2, 1), "a"), (h(2, 3), "b")]).unwrap();
         assert_eq!((w, v), (h(2, 3), "b"));
-        assert_eq!(losers.iter().map(|(_, v)| *v).collect::<Vec<_>>(), ["a", "old"]);
+        assert_eq!(
+            losers.iter().map(|(_, v)| *v).collect::<Vec<_>>(),
+            ["a", "old"]
+        );
         assert!(pick::<&str>(&[]).is_none());
     }
 }
