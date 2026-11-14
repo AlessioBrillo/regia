@@ -74,6 +74,8 @@ impl<R: Replica> Sim<R> {
         if a == b || !self.online[a as usize] || !self.online[b as usize] {
             return Ok(false);
         }
+        self.clients[a as usize].set_now(self.now);
+        self.clients[b as usize].set_now(self.now);
         let shared: Vec<Circle> = self.scope[a as usize]
             .intersection(&self.scope[b as usize])
             .copied()
