@@ -37,6 +37,25 @@ semantics: they become decisions only through ADR-003 accepted with evidence.
 - **S-05, delete vs an edit the delete had not seen:** the edit resurrects the object and the deleter gets a notice.
   An edit made after seeing the delete is refused, as the object is deleted until restored (S-04).
 
+## Rules fixed for increment 2 (2026-11-14, before any result)
+
+Same status as above: spike constraints, ratified only by ADR-002/003 accepted with evidence. Frozen before
+increment 2 runs, so results cannot bend them.
+
+- **S-09, member removed while a device is offline:** the cut is causal, not by clock. Every op by the revoked
+  author that is not in the causal past of the revocation is refused by the circle, quarantined on the device and
+  shown to an admin as a proposal. Never lost silently, never merged automatically (extends owner answer Q5). Offline
+  work done before the revocation but not yet synced is quarantined too: stricter, and clock skew cannot bypass it.
+- **S-10, object moved to another circle:** it disappears from the old circle's index, cache and view. Versions
+  already downloaded by members who are not in the new circle stay in their local history only, are not searchable
+  and receive no later change (consistent with T-02: downloaded copies cannot be recalled).
+- **Alternative C split:** document and note text on Automerge; tasks, events, persons, sources, memberships and
+  approvals on SQLite with an op log.
+- **S-06, migration v0→v1:** a v0 client keeps and forwards fields it does not know without loss, shows what it
+  understands and flags "update the app". It writes only v0 fields.
+- **Clocks:** the HLC merges every received stamp and is persisted across restarts; a stamp more than 60 s ahead of
+  the receiver's clock is refused as skew. Default chosen by the engineer, reviewable before results.
+
 Harness: [`spikes/dat01`](../../spikes/dat01). Increment 1 runs both alternatives through one trait and one
 deterministic simulator, over the synthetic dataset, with a differential property test (same history on A and B must
 give the same visible state) and the canary scan after every workload.
