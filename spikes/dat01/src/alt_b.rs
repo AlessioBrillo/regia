@@ -79,12 +79,23 @@ fn vv_on(conn: &Connection, circle: Circle) -> Vv {
     .unwrap_or_default()
 }
 
+/// Greatest stamp in the log (the `ops_hlc` index makes this a lookup, not a scan). An
+/// unreadable or unparsable stamp is an error: a silent zero would let the clock fall behind.
+fn max_stored_hlc(conn: &Connection) -> Result<Hlc, Error> {
+    let top: Option<String> = sql(conn.query_row("SELECT MAX(hlc) FROM ops", [], |r| r.get(0)))?;
+    top.map_or_else(
+        || Ok(Hlc::default()),
+        |h| h.parse().map_err(|e| format!("stored stamp {h:?}: {e}")),
+    )
+}
+
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS ops(
   circle INTEGER NOT NULL, dev INTEGER NOT NULL, seq INTEGER NOT NULL,
   hlc TEXT NOT NULL, obj TEXT NOT NULL, field TEXT NOT NULL, value TEXT NOT NULL, vv TEXT NOT NULL,
   PRIMARY KEY(circle, dev, seq)) WITHOUT ROWID;
-CREATE INDEX IF NOT EXISTS ops_obj ON ops(circle, obj);";
+CREATE INDEX IF NOT EXISTS ops_obj ON ops(circle, obj);
+CREATE INDEX IF NOT EXISTS ops_hlc ON ops(hlc);";
 
 const SELECT_OPS: &str = "SELECT dev, seq, hlc, obj, field, value, vv FROM ops";
 
@@ -200,14 +211,7 @@ impl AltB {
         sql(conn.execute_batch(SCHEMA))?;
         // The clock is not stored on its own: it is the greatest stamp in the log, so it can
         // never fall behind what this store already holds, across restarts.
-        let clock = conn
-            .query_row("SELECT MAX(hlc) FROM ops", [], |r| {
-                r.get::<_, Option<String>>(0)
-            })
-            .ok()
-            .flatten()
-            .and_then(|h| h.parse().ok())
-            .unwrap_or_default();
+        let clock = max_stored_hlc(&conn)?;
         let mut me = Self {
             device,
             circles: circles.iter().copied().collect(),
@@ -294,7 +298,13 @@ impl AltB {
         if let Some(bad) = ops.iter().find(|o| o.hlc.parse::<Hlc>().is_err()) {
             return Err(format!("malformed stamp {:?}", bad.hlc));
         }
-        let newest = ops.iter().map(hlc_of).max();
+        // Skew is judged on what is new: an op already stored was accepted when it arrived.
+        let held = self.vv(circle);
+        let newest = ops
+            .iter()
+            .filter(|o| o.seq > held.get(&o.dev).copied().unwrap_or(0))
+            .map(hlc_of)
+            .max();
         if let (Some(h), Some(now)) = (newest, self.now)
             && h.skewed(now)
         {
@@ -414,15 +424,7 @@ impl Replica for AltB {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate))?;
         let mut vv = vv_on(&tx, circle);
-        let last_own: Hlc = tx
-            .query_row(
-                "SELECT hlc FROM ops WHERE circle = ?1 AND dev = ?2 ORDER BY seq DESC LIMIT 1",
-                params![db(circle), self.device],
-                |r| r.get::<_, String>(0),
-            )
-            .ok()
-            .and_then(|h| h.parse().ok())
-            .unwrap_or_default();
+        let last_own = max_stored_hlc(&tx)?;
         self.clock = self.clock.recv(last_own);
         for (field, value) in writes {
             let seq = vv.get(&self.device).copied().unwrap_or(0) + 1;

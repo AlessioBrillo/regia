@@ -322,7 +322,9 @@ impl Replica for AltA {
                 .receive_sync_message(&mut trial_state, message.clone())
                 .map_err(err)?;
             let objs = changed_objs(&mut trial, &before);
-            if let Some(h) = max_stamp(&mut trial, Some(&objs))
+            // No parseable commit message: scan everything rather than skip the check.
+            let scope = (!objs.is_empty()).then_some(&objs);
+            if let Some(h) = max_stamp(&mut trial, scope)
                 && h.skewed(now)
             {
                 return Err(format!("stamp {h} is more than 60 s ahead of the clock"));
@@ -335,7 +337,7 @@ impl Replica for AltA {
             return Ok(false);
         }
         let objs = changed_objs(doc, &before);
-        if let Some(h) = max_stamp(doc, Some(&objs)) {
+        if let Some(h) = max_stamp(doc, (!objs.is_empty()).then_some(&objs)) {
             self.clock = self.clock.recv(h);
         }
         for obj in objs {
