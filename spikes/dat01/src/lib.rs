@@ -67,6 +67,24 @@ impl Hlc {
     }
 }
 
+/// A received stamp more than this far ahead of the receiver's clock is refused as skew.
+pub const MAX_SKEW_MS: u64 = 60_000;
+
+impl Hlc {
+    /// Clock after seeing a remote stamp: never behind it, so the next local [`Hlc::tick`] is
+    /// strictly after everything this replica has seen.
+    #[must_use]
+    pub fn recv(self, remote: Self) -> Self {
+        self.max(remote)
+    }
+
+    /// Whether the stamp is implausibly far ahead of `now_ms`.
+    #[must_use]
+    pub const fn skewed(self, now_ms: u64) -> bool {
+        self.ms > now_ms.saturating_add(MAX_SKEW_MS)
+    }
+}
+
 impl fmt::Display for Hlc {
     /// Fixed-width hex: lexicographic order of the text equals [`Ord`].
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -199,6 +217,9 @@ pub trait Replica: Sized {
     fn device(&self) -> Device;
     /// Apply a local op at simulated time `now_ms`.
     fn apply_local(&mut self, circle: Circle, op: Op, now_ms: u64) -> Result<(), Error>;
+    /// Receiver's idea of the true time, set by the transport before a session. Until it is set
+    /// no skew check is made.
+    fn set_now(&mut self, now_ms: u64);
     /// Next sync message for this peer and circle, if any.
     fn generate(&mut self, circle: Circle, st: &mut Self::Sync) -> Option<Vec<u8>>;
     /// Process a peer's message. `true` if local state changed.
@@ -250,6 +271,26 @@ mod tests {
         }
         assert!(a < b && b < c);
         assert!(a.to_string() < b.to_string() && b.to_string() < c.to_string());
+    }
+
+    #[test]
+    fn recv_then_tick_is_after_the_remote_stamp() {
+        let local = Hlc {
+            ms: 5,
+            counter: 0,
+            device: 1,
+        };
+        let remote = Hlc {
+            ms: 900,
+            counter: 2,
+            device: 7,
+        };
+        assert!(local.recv(remote).tick(6, 1) > remote);
+        let far = Hlc {
+            ms: 100_000,
+            ..remote
+        };
+        assert!(!far.skewed(100_000 - MAX_SKEW_MS) && far.skewed(100_000 - MAX_SKEW_MS - 1));
     }
 
     #[test]

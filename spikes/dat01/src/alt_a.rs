@@ -40,6 +40,7 @@ pub struct AltA {
     device: Device,
     docs: BTreeMap<Circle, AutoCommit>,
     clock: Hlc,
+    now: Option<u64>,
     index: Index,
 }
 
@@ -111,6 +112,33 @@ fn derive(doc: &mut AutoCommit, obj: &str) -> Option<(ObjView, Vec<Conflict>, Op
     Some((view, conflicts, notice))
 }
 
+/// Greatest stamp stored in the given objects (all of them if `objs` is `None`).
+fn max_stamp(doc: &mut AutoCommit, objs: Option<&BTreeSet<String>>) -> Option<Hlc> {
+    let objs: Vec<String> =
+        objs.map_or_else(|| doc.keys(ROOT).collect(), |o| o.iter().cloned().collect());
+    let mut max = None;
+    for obj in objs {
+        let Some((_, id)) = doc.get(ROOT, obj.as_str()).ok().flatten() else {
+            continue;
+        };
+        let keys: Vec<String> = doc.keys(&id).collect();
+        for key in keys {
+            for (v, _) in doc.get_all(&id, key.as_str()).unwrap_or_default() {
+                max = max.max(v.as_str().and_then(decode).map(|(h, _)| h));
+            }
+        }
+    }
+    max
+}
+
+/// Objects named by the commit messages of the changes after `heads`.
+fn changed_objs(doc: &mut AutoCommit, heads: &[ChangeHash]) -> BTreeSet<String> {
+    doc.get_changes(heads)
+        .iter()
+        .filter_map(|c| Some(c.message()?.split_once('\t')?.0.to_owned()))
+        .collect()
+}
+
 impl AltA {
     fn doc(&mut self, circle: Circle) -> Result<&mut AutoCommit, Error> {
         self.docs
@@ -173,6 +201,10 @@ impl AltA {
     pub fn load_circle(&mut self, circle: Circle, bytes: &[u8]) -> Result<(), Error> {
         let mut doc = AutoCommit::load(bytes).map_err(err)?;
         doc.set_actor(ActorId::random());
+        // The clock is the greatest stamp in the data, so a restart cannot put it behind.
+        self.clock = self
+            .clock
+            .recv(max_stamp(&mut doc, None).unwrap_or_default());
         self.docs.insert(circle, doc);
         self.rebuild_index();
         Ok(())
@@ -191,12 +223,17 @@ impl Replica for AltA {
             device,
             docs,
             clock: Hlc::default(),
+            now: None,
             index: Index::new(),
         }
     }
 
     fn device(&self) -> Device {
         self.device
+    }
+
+    fn set_now(&mut self, now_ms: u64) {
+        self.now = Some(now_ms);
     }
 
     fn apply_local(&mut self, circle: Circle, op: Op, now_ms: u64) -> Result<(), Error> {
@@ -272,26 +309,35 @@ impl Replica for AltA {
 
     fn receive(&mut self, circle: Circle, st: &mut ASync, msg: &[u8]) -> Result<bool, Error> {
         let message = sync::Message::decode(msg).map_err(err)?;
+        let now = self.now;
         let doc = self.doc(circle)?;
-        let heads = |d: &mut AutoCommit| -> Vec<String> {
-            let mut h: Vec<String> = d.get_heads().iter().map(ToString::to_string).collect();
-            h.sort();
-            h
-        };
-        let before = heads(doc);
-        let before_hashes = doc.get_heads();
+        let before = doc.get_heads();
+        if let Some(now) = now {
+            // Automerge applies a message as it receives it, so a skewed stamp cannot be refused
+            // afterwards. Try the message on a fork (with a copy of the session state) first.
+            let mut trial = doc.fork();
+            let mut trial_state = st.0.clone();
+            trial
+                .sync()
+                .receive_sync_message(&mut trial_state, message.clone())
+                .map_err(err)?;
+            let objs = changed_objs(&mut trial, &before);
+            if let Some(h) = max_stamp(&mut trial, Some(&objs))
+                && h.skewed(now)
+            {
+                return Err(format!("stamp {h} is more than 60 s ahead of the clock"));
+            }
+        }
         doc.sync()
             .receive_sync_message(&mut st.0, message)
             .map_err(err)?;
-        let after = heads(doc);
-        if before == after {
+        if doc.get_heads() == before {
             return Ok(false);
         }
-        let objs: BTreeSet<String> = doc
-            .get_changes(&before_hashes)
-            .iter()
-            .filter_map(|c| Some(c.message()?.split_once('\t')?.0.to_owned()))
-            .collect();
+        let objs = changed_objs(doc, &before);
+        if let Some(h) = max_stamp(doc, Some(&objs)) {
+            self.clock = self.clock.recv(h);
+        }
         for obj in objs {
             self.touch(circle, &obj);
         }

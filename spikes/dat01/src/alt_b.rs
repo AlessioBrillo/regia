@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -57,7 +57,26 @@ pub struct AltB {
     circles: BTreeSet<Circle>,
     conn: Connection,
     clock: Hlc,
+    now: Option<u64>,
     index: Index,
+}
+
+/// Highest author sequence per device in `circle`. Takes a connection so a write can read it
+/// inside its own transaction.
+fn vv_on(conn: &Connection, circle: Circle) -> Vv {
+    let Ok(mut st) =
+        conn.prepare_cached("SELECT dev, MAX(seq) FROM ops WHERE circle = ?1 GROUP BY dev")
+    else {
+        return Vv::new();
+    };
+    st.query_map([db(circle)], |r| {
+        Ok((
+            r.get::<_, Device>(0)?,
+            u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0),
+        ))
+    })
+    .map(|rows| rows.flatten().collect())
+    .unwrap_or_default()
 }
 
 const SCHEMA: &str = "
@@ -146,18 +165,55 @@ fn row_to_op(r: &rusqlite::Row<'_>) -> rusqlite::Result<WireOp> {
 }
 
 impl AltB {
-    /// File-backed replica (S-07 reopens it).
+    /// File-backed replica (S-07 reopens it, S-12 opens it from several processes). WAL with a
+    /// full sync per commit, and writers wait for each other instead of failing.
     pub fn open(device: Device, circles: &[Circle], path: &Path) -> Result<Self, Error> {
-        Self::with(device, circles, sql(Connection::open(path))?)
+        // Switching to WAL on a database another process is creating at that very moment fails
+        // with "locked" without waiting (S-12 found it), so the first open retries.
+        let mut tries = 0;
+        loop {
+            let opened = sql(Connection::open(path)).and_then(|conn| {
+                sql(conn.busy_timeout(std::time::Duration::from_secs(30)))?;
+                sql(conn.pragma_update(None, "journal_mode", "WAL"))?;
+                sql(conn.pragma_update(None, "synchronous", "FULL"))?;
+                Self::with(device, circles, conn)
+            });
+            match opened {
+                Err(e) if e.contains("locked") && tries < 100 => {
+                    tries += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                done => return done,
+            }
+        }
+    }
+
+    /// SQLite's own consistency check of the whole file.
+    #[must_use]
+    pub fn integrity_ok(&self) -> bool {
+        self.conn
+            .query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
+            .is_ok_and(|s| s == "ok")
     }
 
     fn with(device: Device, circles: &[Circle], conn: Connection) -> Result<Self, Error> {
         sql(conn.execute_batch(SCHEMA))?;
+        // The clock is not stored on its own: it is the greatest stamp in the log, so it can
+        // never fall behind what this store already holds, across restarts.
+        let clock = conn
+            .query_row("SELECT MAX(hlc) FROM ops", [], |r| {
+                r.get::<_, Option<String>>(0)
+            })
+            .ok()
+            .flatten()
+            .and_then(|h| h.parse().ok())
+            .unwrap_or_default();
         let mut me = Self {
             device,
             circles: circles.iter().copied().collect(),
             conn,
-            clock: Hlc::default(),
+            clock,
+            now: None,
             index: Index::new(),
         };
         me.rebuild_index();
@@ -179,20 +235,7 @@ impl AltB {
     /// What this replica has of `circle`: highest sequence per author.
     #[must_use]
     pub fn vv(&self, circle: Circle) -> Vv {
-        let Ok(mut st) = self
-            .conn
-            .prepare_cached("SELECT dev, MAX(seq) FROM ops WHERE circle = ?1 GROUP BY dev")
-        else {
-            return Vv::new();
-        };
-        st.query_map([db(circle)], |r| {
-            Ok((
-                r.get::<_, Device>(0)?,
-                u64::try_from(r.get::<_, i64>(1)?).unwrap_or(0),
-            ))
-        })
-        .map(|rows| rows.flatten().collect())
-        .unwrap_or_default()
+        vv_on(&self.conn, circle)
     }
 
     /// Ops of `circle` the holder of `have` lacks, in author/sequence order.
@@ -251,6 +294,12 @@ impl AltB {
         if let Some(bad) = ops.iter().find(|o| o.hlc.parse::<Hlc>().is_err()) {
             return Err(format!("malformed stamp {:?}", bad.hlc));
         }
+        let newest = ops.iter().map(hlc_of).max();
+        if let (Some(h), Some(now)) = (newest, self.now)
+            && h.skewed(now)
+        {
+            return Err(format!("stamp {h} is more than 60 s ahead of the clock"));
+        }
         // Each author's log must arrive without holes: `vv` (and so every coverage decision)
         // assumes it. Ops we already have are fine; a gap is refused, never imported.
         let mut next = self.vv(circle);
@@ -274,6 +323,9 @@ impl AltB {
             added += Self::insert(&tx, circle, o)?;
         }
         sql(tx.commit())?;
+        if let Some(h) = newest {
+            self.clock = self.clock.recv(h);
+        }
         let touched: BTreeSet<&str> = ops.iter().map(|o| o.obj.as_str()).collect();
         for obj in touched {
             self.touch(circle, obj);
@@ -284,8 +336,8 @@ impl AltB {
     /// S-07: a crash in the middle of an import. Inserts the first `apply` ops inside the
     /// import's transaction and abandons it uncommitted.
     ///
-    /// `ponytail:` an abort, not a power cut. A killed process is covered by SQLite's journal,
-    /// which this spike does not re-test; add a child-process kill test if ADR-002 picks SQLite.
+    /// `ponytail:` an abort, not a kill. The killed-process case is `tests/processes.rs`; a
+    /// power cut is covered by neither.
     pub fn abandon_import(
         &mut self,
         circle: Circle,
@@ -311,6 +363,10 @@ impl Replica for AltB {
 
     fn device(&self) -> Device {
         self.device
+    }
+
+    fn set_now(&mut self, now_ms: u64) {
+        self.now = Some(now_ms);
     }
 
     fn apply_local(&mut self, circle: Circle, op: Op, now_ms: u64) -> Result<(), Error> {
@@ -352,8 +408,22 @@ impl Replica for AltB {
                 (obj, vec![(DELETED.to_owned(), "0".to_owned())])
             }
         };
-        let mut vv = self.vv(circle);
-        let tx = sql(self.conn.transaction())?;
+        // IMMEDIATE takes the write lock before the sequence number is read: two processes of
+        // one device (S-12) can never choose the same `seq` or the same stamp.
+        let tx = sql(self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate))?;
+        let mut vv = vv_on(&tx, circle);
+        let last_own: Hlc = tx
+            .query_row(
+                "SELECT hlc FROM ops WHERE circle = ?1 AND dev = ?2 ORDER BY seq DESC LIMIT 1",
+                params![db(circle), self.device],
+                |r| r.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|h| h.parse().ok())
+            .unwrap_or_default();
+        self.clock = self.clock.recv(last_own);
         for (field, value) in writes {
             let seq = vv.get(&self.device).copied().unwrap_or(0) + 1;
             self.clock = self.clock.tick(now_ms, self.device);
