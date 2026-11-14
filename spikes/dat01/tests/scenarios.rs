@@ -665,6 +665,62 @@ proptest! {
     }
 }
 
+// --- clocks --------------------------------------------------------------------------------------
+
+fn three_devices<R: Replica>() -> Sim<R> {
+    Sim::new(vec![BTreeSet::from([0]); 3])
+}
+
+fn create_o<R: Replica>(sim: &mut Sim<R>, at: u64) {
+    let f = BTreeMap::from([("title".to_owned(), "t0".to_owned())]);
+    let op = Op::Create {
+        obj: "o".into(),
+        fields: f,
+    };
+    sim.op_at(0, 0, op, at).unwrap();
+}
+
+fn set_title<R: Replica>(sim: &mut Sim<R>, d: Device, value: &str, at: u64) {
+    let op = Op::Set {
+        obj: "o".into(),
+        field: "title".into(),
+        value: value.into(),
+    };
+    sim.op_at(d, 0, op, at).unwrap();
+}
+
+/// Device 1 receives a stamp ahead of its own clock, then writes with the slow clock. Its write
+/// must still be stamped after what it had seen, so it beats a concurrent older write.
+fn clock_merges_received_stamps<R: Replica>() {
+    let mut sim = three_devices::<R>();
+    create_o(&mut sim, 1_001);
+    sim.sync_all().unwrap();
+    sim.set_online(2, false);
+    set_title(&mut sim, 2, "from-2", 7_000);
+    set_title(&mut sim, 0, "from-0", 10_000);
+    sim.sync_pair(0, 1).unwrap();
+    set_title(&mut sim, 1, "from-1", 5); // behind its own clock
+    sim.set_online(2, true);
+    sim.sync_all().unwrap();
+    let snap = sim.clients[0].snapshot(0);
+    assert_eq!(snap.objects["o"].fields["title"], "from-1");
+    assert_eq!(snap, sim.clients[2].snapshot(0));
+    assert_eq!(
+        snap.conflicts.len(),
+        1,
+        "the concurrent older write stays visible"
+    );
+}
+
+/// A stamp more than 60 s ahead of the receiver is refused, and nothing of it is kept.
+fn skewed_stamp_is_refused<R: Replica>() {
+    let mut sim = Sim::<R>::new(vec![BTreeSet::from([0]); 2]);
+    create_o(&mut sim, 1_000_000);
+    assert!(sim.sync_pair(0, 1).is_err(), "a skewed stamp was accepted");
+    assert!(sim.clients[1].snapshot(0).objects.is_empty());
+    assert!(!sim.clients[1].dump_text().contains("t0"));
+}
+
 macro_rules! for_both {
     ($($f:ident),* $(,)?) => {
         mod alt_a { use super::*; $( #[test] fn $f() { super::$f::<AltA>(); } )* }
@@ -681,4 +737,6 @@ for_both!(
     s05_edit_unseen_by_delete_resurrects_and_notifies,
     s11_index_rebuild_is_identical,
     foreign_circle_messages_are_refused,
+    clock_merges_received_stamps,
+    skewed_stamp_is_refused,
 );
