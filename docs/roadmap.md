@@ -55,6 +55,14 @@ Recorded in detail, with the experiment that verifies each, in
 9. Excluded from the pilot: health, minors, finance, credentials, ID documents.
 10. Targets: local write p95 < 50 ms, convergence p95 < 5 s with 5 clients, 0 silent losses.
 
+## Owner decision on scope (2026-11-15)
+
+The vision is wider than families: one capture surface (voice or text) for work, home, notes, reminders and
+commitments, filed automatically into well-separated areas, retrievable visually and by asking questions like to an
+expert secretary. It should later replace agile ceremonies in structured organisations. Placement: personal and family
+use stays the pilot (G3); organisations (AR-17) and agile as derived views (AR-18) belong to **G4**, and must reuse
+the same policy engine and source of truth. AR-16 is the G2 slice target. Nothing in the G3 pilot perimeter changes.
+
 ## Out of the first vertical slice (not out of the vision)
 
 Payments, open banking, agentic phone calls, public-administration automation, functional health assistance, advanced

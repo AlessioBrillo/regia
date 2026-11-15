@@ -1,9 +1,10 @@
 # Regìa
 
-> A local-first, privacy-preserving, governed AI operations layer for families and small circles of people.
+> A local-first, privacy-preserving, governed AI operations layer: say or type anything, and it is captured, sourced,
+> filed into the right area and findable again, for people, families and, later, organisations.
 
-**Status: Gate G0 (verifiable baseline) in progress.** Nothing here is production software and no data-protection
-guarantee is made yet. See the [roadmap](docs/roadmap.md).
+**Status: Gate G1 (compared foundations) in progress; G0 closed.** Nothing here is production software and no
+data-protection guarantee is made yet. See the [roadmap](docs/roadmap.md).
 
 Regìa combines things that are individually tractable but hard to integrate: personal data shared across circles,
 offline operation, multi-device sync, confidentiality and revocation, multimodal capture, local and remote language
