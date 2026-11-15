@@ -12,8 +12,8 @@ use rusqlite::{Connection, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Circle, Conflict, DELETED, Device, Error, Hlc, Index, Notice, ObjView, Op, Replica, Snapshot,
-    index_entry, pick,
+    CIRCLE_OBJ, Circle, Conflict, DELETED, Device, Error, Hlc, Index, MOVED, Notice, ObjView, Op,
+    Quarantined, Reason, Replica, Snapshot, index_entry, parse_revoked, pick, revoked_field,
 };
 
 type Vv = BTreeMap<Device, u64>;
@@ -103,6 +103,39 @@ fn covered(w: &WireOp, by: &WireOp) -> bool {
     by.vv.get(&w.dev).is_some_and(|&s| s >= w.seq)
 }
 
+/// Revocation cuts of `circle`: per revoked author, how many of their own ops the revoker had
+/// seen. With two cuts for one author (concurrent revokers) the stricter one applies.
+fn cuts_on(conn: &Connection, circle: Circle) -> Cuts {
+    let mut cuts = Cuts::new();
+    let Ok(mut st) =
+        conn.prepare_cached("SELECT field, value FROM ops WHERE circle = ?1 AND obj = ?2")
+    else {
+        return cuts;
+    };
+    let rows = st.query_map(params![db(circle), CIRCLE_OBJ], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+    });
+    for (field, value) in rows.into_iter().flatten().flatten() {
+        if let (Some(member), Ok(cut)) = (parse_revoked(&field), value.parse::<u64>()) {
+            cuts.entry(member)
+                .and_modify(|c| *c = (*c).min(cut))
+                .or_insert(cut);
+        }
+    }
+    cuts
+}
+
+type Cuts = BTreeMap<Device, u64>;
+
+/// One object's writes in one circle: `(circle, object, [(field, value)])`.
+type Batch = (Circle, String, Vec<(String, String)>);
+
+/// An op is shown unless its author was revoked and it is beyond the cut (S-09). The test is on
+/// the author's own sequence number, so it is causal: no clock can move an op to the safe side.
+fn kept(o: &WireOp, cuts: &Cuts) -> bool {
+    cuts.get(&o.dev).is_none_or(|&cut| o.seq <= cut)
+}
+
 fn hlc_of(op: &WireOp) -> Hlc {
     op.hlc.parse().unwrap_or_default() // the stamp text is validated at ingest, see `import`
 }
@@ -116,10 +149,20 @@ fn sql<T>(r: rusqlite::Result<T>) -> Result<T, Error> {
     r.map_err(|e| e.to_string())
 }
 
+/// What B shows of one object, and what it holds aside.
+struct Derived {
+    view: ObjView,
+    conflicts: Vec<Conflict>,
+    notice: Option<Notice>,
+    quarantine: BTreeSet<Quarantined>,
+}
+
 /// Visible state of one object from all its ops. Pure: the only place B's rules live.
-fn derive(obj: &str, ops: &[WireOp]) -> (ObjView, Vec<Conflict>, Option<Notice>) {
+fn derive(obj: &str, ops: &[WireOp], cuts: &Cuts) -> Derived {
+    // Ops beyond a revocation cut take no part: they do not win, conflict, cover or resurrect.
+    let ops: Vec<&WireOp> = ops.iter().filter(|o| kept(o, cuts)).collect();
     let mut by_field: BTreeMap<&str, Vec<&WireOp>> = BTreeMap::new();
-    for op in ops {
+    for op in &ops {
         by_field.entry(op.field.as_str()).or_default().push(op);
     }
     let heads = |all: &[&WireOp]| -> Vec<(Hlc, WireOp)> {
@@ -130,17 +173,21 @@ fn derive(obj: &str, ops: &[WireOp]) -> (ObjView, Vec<Conflict>, Option<Notice>)
     };
     let mut view = ObjView {
         deleted: false,
+        moved: false,
         fields: BTreeMap::new(),
     };
     let mut conflicts = Vec::new();
     let mut notice = None;
+    let mut quarantine = BTreeSet::new();
     for (field, all) in &by_field {
         let Some(((_, win), losers)) = pick(&heads(all)) else {
             continue;
         };
         if *field == DELETED {
             if win.value == "1" {
-                let resurrected = ops.iter().any(|w| w.field != DELETED && !covered(w, &win));
+                let resurrected = ops
+                    .iter()
+                    .any(|w| w.field != DELETED && w.field != MOVED && !covered(w, &win));
                 view.deleted = !resurrected;
                 if resurrected {
                     notice = Some(Notice {
@@ -148,6 +195,20 @@ fn derive(obj: &str, ops: &[WireOp]) -> (ObjView, Vec<Conflict>, Option<Notice>)
                         deleter: win.dev,
                     });
                 }
+            }
+        } else if *field == MOVED {
+            // Whatever the move had not seen was made in the old circle by someone who did not
+            // know; it is held aside for the mover, never put back (S-10).
+            view.moved = true;
+            for w in ops
+                .iter()
+                .filter(|w| w.field != DELETED && w.field != MOVED && !covered(w, &win))
+            {
+                quarantine.insert(Quarantined {
+                    obj: obj.to_owned(),
+                    author: w.dev,
+                    reason: Reason::MovedAway,
+                });
             }
         } else {
             view.fields.insert((*field).to_owned(), win.value);
@@ -159,7 +220,12 @@ fn derive(obj: &str, ops: &[WireOp]) -> (ObjView, Vec<Conflict>, Option<Notice>)
             }));
         }
     }
-    (view, conflicts, notice)
+    Derived {
+        view,
+        conflicts,
+        notice,
+        quarantine,
+    }
 }
 
 fn row_to_op(r: &rusqlite::Row<'_>) -> rusqlite::Result<WireOp> {
@@ -250,20 +316,30 @@ impl AltB {
         ops
     }
 
+    /// Ops of one object that are shown: those of a revoked author beyond the cut are held
+    /// aside, so an object that only they wrote does not exist yet.
     fn obj_ops(&self, circle: Circle, obj: &str) -> Vec<WireOp> {
-        self.ops_where("circle = ?1 AND obj = ?2", params![db(circle), obj])
+        let cuts = cuts_on(&self.conn, circle);
+        let mut ops = self.ops_where("circle = ?1 AND obj = ?2", params![db(circle), obj]);
+        ops.retain(|o| kept(o, &cuts));
+        ops
     }
 
-    fn view_of(&self, circle: Circle, obj: &str) -> Result<ObjView, Error> {
+    fn view_of(&self, circle: Circle, obj: &str) -> Result<Derived, Error> {
         let ops = self.obj_ops(circle, obj);
         if ops.is_empty() {
             return Err(format!("no such object {obj}"));
         }
-        Ok(derive(obj, &ops).0)
+        Ok(derive(obj, &ops, &Cuts::new()))
     }
 
     fn touch(&mut self, circle: Circle, obj: &str) {
-        let (view, ..) = derive(obj, &self.obj_ops(circle, obj));
+        if obj == CIRCLE_OBJ {
+            // A revocation changes what other objects show, not only itself.
+            self.rebuild_index();
+            return;
+        }
+        let view = derive(obj, &self.obj_ops(circle, obj), &Cuts::new()).view;
         match index_entry(&view) {
             Some(t) => self.index.insert((circle, obj.to_owned()), t),
             None => self.index.remove(&(circle, obj.to_owned())),
@@ -343,6 +419,92 @@ impl AltB {
         Ok(added > 0)
     }
 
+    /// The writes one op makes, validated against what this replica shows. A move writes two
+    /// circles; they commit together.
+    fn plan(&self, circle: Circle, op: Op) -> Result<Vec<Batch>, Error> {
+        Ok(match op {
+            Op::Create { obj, fields } => {
+                if fields.is_empty() || fields.contains_key(DELETED) || fields.contains_key(MOVED) {
+                    return Err("create needs fields, and not a reserved register".into());
+                }
+                if !self.obj_ops(circle, &obj).is_empty() {
+                    return Err(format!("object {obj} exists"));
+                }
+                vec![(circle, obj, fields.into_iter().collect())]
+            }
+            Op::Set { obj, field, value } => {
+                if field == DELETED || field == MOVED {
+                    return Err("the delete and move registers are not fields".into());
+                }
+                Self::live(&self.view_of(circle, &obj)?.view, &obj)?;
+                vec![(circle, obj, vec![(field, value)])]
+            }
+            Op::Delete { obj } => {
+                Self::live(&self.view_of(circle, &obj)?.view, &obj)?;
+                vec![(circle, obj, vec![(DELETED.to_owned(), "1".to_owned())])]
+            }
+            Op::Restore { obj } => {
+                let view = self.view_of(circle, &obj)?.view;
+                if view.moved {
+                    return Err(format!("object {obj} was moved"));
+                }
+                if !view.deleted {
+                    return Err(format!("object {obj} is not deleted"));
+                }
+                vec![(circle, obj, vec![(DELETED.to_owned(), "0".to_owned())])]
+            }
+            Op::Revoke { member } => {
+                if member == self.device {
+                    return Err("a device cannot revoke itself".into());
+                }
+                if cuts_on(&self.conn, circle).contains_key(&member) {
+                    return Err(format!("device {member} is already revoked"));
+                }
+                // ponytail: read outside the write transaction. A racing local process can only
+                // make the cut lower, which is the stricter side.
+                let cut = self.vv(circle).get(&member).copied().unwrap_or(0);
+                vec![(
+                    circle,
+                    CIRCLE_OBJ.to_owned(),
+                    vec![(revoked_field(member), cut.to_string())],
+                )]
+            }
+            Op::Move { obj, to } => {
+                if to == circle || !self.circles.contains(&to) {
+                    return Err(format!(
+                        "device {} cannot move an object from circle {circle} to {to}",
+                        self.device
+                    ));
+                }
+                let seen = self.view_of(circle, &obj)?;
+                Self::live(&seen.view, &obj)?;
+                if !seen.conflicts.is_empty() {
+                    return Err(format!(
+                        "object {obj} has open conflicts: resolve them before moving it"
+                    ));
+                }
+                if !self.obj_ops(to, &obj).is_empty() {
+                    return Err(format!("object {obj} exists in circle {to}"));
+                }
+                vec![
+                    (to, obj.clone(), seen.view.fields.into_iter().collect()),
+                    (circle, obj, vec![(MOVED.to_owned(), to.to_string())]),
+                ]
+            }
+        })
+    }
+
+    /// A write needs an object that is neither deleted nor moved away.
+    fn live(view: &ObjView, obj: &str) -> Result<(), Error> {
+        if view.moved {
+            return Err(format!("object {obj} was moved to another circle"));
+        }
+        if view.deleted {
+            return Err(format!("object {obj} is deleted"));
+        }
+        Ok(())
+    }
+
     /// S-07: a crash in the middle of an import. Inserts the first `apply` ops inside the
     /// import's transaction and abandons it uncommitted.
     ///
@@ -386,67 +548,40 @@ impl Replica for AltB {
                 self.device
             ));
         }
-        let (obj, writes) = match op {
-            Op::Create { obj, fields } => {
-                if fields.is_empty() || fields.contains_key(DELETED) {
-                    return Err("create needs fields, and not the delete register".into());
-                }
-                if !self.obj_ops(circle, &obj).is_empty() {
-                    return Err(format!("object {obj} exists"));
-                }
-                (obj, fields.into_iter().collect::<Vec<_>>())
-            }
-            Op::Set { obj, field, value } => {
-                if field == DELETED {
-                    return Err("the delete register is not a field".into());
-                }
-                if self.view_of(circle, &obj)?.deleted {
-                    return Err(format!("object {obj} is deleted"));
-                }
-                (obj, vec![(field, value)])
-            }
-            Op::Delete { obj } => {
-                if self.view_of(circle, &obj)?.deleted {
-                    return Err(format!("object {obj} is already deleted"));
-                }
-                (obj, vec![(DELETED.to_owned(), "1".to_owned())])
-            }
-            Op::Restore { obj } => {
-                if !self.view_of(circle, &obj)?.deleted {
-                    return Err(format!("object {obj} is not deleted"));
-                }
-                (obj, vec![(DELETED.to_owned(), "0".to_owned())])
-            }
-        };
+        let batches = self.plan(circle, op)?;
         // IMMEDIATE takes the write lock before the sequence number is read: two processes of
         // one device (S-12) can never choose the same `seq` or the same stamp.
         let tx = sql(self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate))?;
-        let mut vv = vv_on(&tx, circle);
         let last_own = max_stored_hlc(&tx)?;
         self.clock = self.clock.recv(last_own);
-        for (field, value) in writes {
-            let seq = vv.get(&self.device).copied().unwrap_or(0) + 1;
-            self.clock = self.clock.tick(now_ms, self.device);
-            let o = WireOp {
-                dev: self.device,
-                seq,
-                hlc: self.clock.to_string(),
-                obj: obj.clone(),
-                field,
-                value,
-                vv: vv.clone(),
-            };
-            // `INSERT OR IGNORE` would hide a collision (e.g. a failed `vv` read reusing a
-            // sequence number) and drop the user's write while reporting success.
-            if Self::insert(&tx, circle, &o)? != 1 {
-                return Err(format!("op ({}, {seq}) was not stored", self.device));
+        for (c, obj, writes) in &batches {
+            let mut vv = vv_on(&tx, *c);
+            for (field, value) in writes {
+                let seq = vv.get(&self.device).copied().unwrap_or(0) + 1;
+                self.clock = self.clock.tick(now_ms, self.device);
+                let o = WireOp {
+                    dev: self.device,
+                    seq,
+                    hlc: self.clock.to_string(),
+                    obj: obj.clone(),
+                    field: field.clone(),
+                    value: value.clone(),
+                    vv: vv.clone(),
+                };
+                // `INSERT OR IGNORE` would hide a collision (e.g. a failed `vv` read reusing a
+                // sequence number) and drop the user's write while reporting success.
+                if Self::insert(&tx, *c, &o)? != 1 {
+                    return Err(format!("op ({}, {seq}) was not stored", self.device));
+                }
+                vv.insert(self.device, seq);
             }
-            vv.insert(self.device, seq);
         }
         sql(tx.commit())?;
-        self.touch(circle, &obj);
+        for (c, obj, _) in &batches {
+            self.touch(*c, obj);
+        }
         Ok(())
     }
 
@@ -485,17 +620,47 @@ impl Replica for AltB {
         }
     }
 
+    fn upload(&mut self, circle: Circle) -> Vec<u8> {
+        let ops = self.ops_after(circle, &Vv::new());
+        serde_json::to_vec(&Msg::Ops(ops)).unwrap_or_default()
+    }
+
+    fn accept_upload(&mut self, circle: Circle, msg: &[u8]) -> Result<bool, Error> {
+        match serde_json::from_slice::<Msg>(msg).map_err(|e| e.to_string())? {
+            Msg::Ops(ops) => self.import(circle, &ops),
+            Msg::Have(_) => Err("an upload carries ops, not a version vector".into()),
+        }
+    }
+
     fn snapshot(&mut self, circle: Circle) -> Snapshot {
+        let cuts = cuts_on(&self.conn, circle);
         let mut by_obj: BTreeMap<String, Vec<WireOp>> = BTreeMap::new();
+        let mut snap = Snapshot::default();
         for o in self.ops_where("circle = ?1", [db(circle)]) {
+            if o.obj == CIRCLE_OBJ {
+                continue;
+            }
+            if !kept(&o, &cuts) {
+                snap.quarantine.insert(Quarantined {
+                    obj: o.obj.clone(),
+                    author: o.dev,
+                    reason: Reason::Revoked,
+                });
+            }
             by_obj.entry(o.obj.clone()).or_default().push(o);
         }
-        let mut snap = Snapshot::default();
         for (obj, ops) in by_obj {
-            let (view, conflicts, notice) = derive(&obj, &ops);
-            snap.conflicts.extend(conflicts);
-            snap.notices.extend(notice);
-            snap.objects.insert(obj, view);
+            if ops.iter().all(|o| !kept(o, &cuts)) {
+                continue; // only a revoked author's unseen work: the object does not exist yet
+            }
+            let d = derive(&obj, &ops, &cuts);
+            snap.quarantine.extend(d.quarantine);
+            if d.view.moved {
+                continue;
+            }
+            snap.conflicts.extend(d.conflicts);
+            snap.notices.extend(d.notice);
+            snap.objects.insert(obj, d.view);
         }
         snap
     }

@@ -16,6 +16,9 @@ pub struct Sim<R: Replica> {
     /// The replicas, index = device id.
     pub clients: Vec<R>,
     scope: Vec<BTreeSet<Circle>>,
+    /// `(circle, device)` pairs the relay no longer syncs. The device still holds the circle
+    /// locally and keeps writing: it only learns of the revocation by being refused.
+    revoked: BTreeSet<(Circle, Device)>,
     online: Vec<bool>,
     /// Simulated milliseconds; strictly increases with every op.
     pub now: u64,
@@ -43,6 +46,7 @@ impl<R: Replica> Sim<R> {
             online: vec![true; scope.len()],
             clients,
             scope,
+            revoked: BTreeSet::new(),
             now: 1_000,
             bytes: 0,
             messages: 0,
@@ -76,15 +80,42 @@ impl<R: Replica> Sim<R> {
         }
         self.clients[a as usize].set_now(self.now);
         self.clients[b as usize].set_now(self.now);
-        let shared: Vec<Circle> = self.scope[a as usize]
+        let both: Vec<Circle> = self.scope[a as usize]
             .intersection(&self.scope[b as usize])
             .copied()
             .collect();
         let mut changed = false;
-        for circle in shared {
-            changed |= self.session(a, b, circle)?;
+        for &circle in &both {
+            let (ra, rb) = (self.is_revoked(circle, a), self.is_revoked(circle, b));
+            if !ra && !rb {
+                changed |= self.session(a, b, circle)?;
+            } else if ra != rb {
+                // A revoked device that comes back can only hand over what it wrote (S-09).
+                let (from, to) = if ra { (a, b) } else { (b, a) };
+                changed |= self.upload(from, to, circle)?;
+            }
         }
         Ok(changed)
+    }
+
+    fn is_revoked(&self, circle: Circle, d: Device) -> bool {
+        self.revoked.contains(&(circle, d))
+    }
+
+    fn upload(&mut self, from: Device, to: Device, circle: Circle) -> Result<bool, Error> {
+        let msg = self.clients[from as usize].upload(circle);
+        self.bytes += msg.len();
+        self.messages += 1;
+        self.clients[to as usize].accept_upload(circle, &msg)
+    }
+
+    /// `admin` revokes `member` in `circle`: the revocation is written in the circle's own data
+    /// (what `admin` had seen of `member` is the cut) and, from now on, the relay no longer
+    /// syncs that circle with `member`.
+    pub fn revoke(&mut self, admin: Device, circle: Circle, member: Device) -> Result<(), Error> {
+        self.op(admin, circle, Op::Revoke { member })?;
+        self.revoked.insert((circle, member));
+        Ok(())
     }
 
     fn session(&mut self, a: Device, b: Device, circle: Circle) -> Result<bool, Error> {
@@ -134,8 +165,8 @@ impl<R: Replica> Sim<R> {
     #[must_use]
     pub fn members(&self, circle: Circle) -> Vec<Device> {
         (0..self.clients.len())
-            .filter(|&d| self.scope[d].contains(&circle))
             .map(|d| u32::try_from(d).unwrap_or(u32::MAX))
+            .filter(|&d| self.scope[d as usize].contains(&circle) && !self.is_revoked(circle, d))
             .collect()
     }
 

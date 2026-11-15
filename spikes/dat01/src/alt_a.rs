@@ -20,8 +20,8 @@ use automerge::{
 };
 
 use crate::{
-    Circle, Conflict, DELETED, Device, Error, Hlc, Index, Notice, ObjView, Op, Replica, Snapshot,
-    index_entry, pick,
+    CIRCLE_OBJ, Circle, Conflict, DELETED, Device, Error, Hlc, Index, MOVED, Notice, ObjView, Op,
+    Quarantined, Reason, Replica, Snapshot, index_entry, parse_revoked, pick, revoked_field,
 };
 
 const SEP: char = '\u{1}';
@@ -62,16 +62,43 @@ fn decode(s: &str) -> Option<(Hlc, &str)> {
     Some((h.parse().ok()?, v))
 }
 
+/// What A shows of one object, and what it holds aside.
+struct Derived {
+    view: ObjView,
+    conflicts: Vec<Conflict>,
+    notice: Option<Notice>,
+    quarantine: BTreeSet<Quarantined>,
+}
+
+/// Devices whose changes, not seen by `seen` (a comma list of change hashes), wrote a field of
+/// `obj` other than a register. Hashes the document does not hold are ignored.
+fn unseen_writers(doc: &mut AutoCommit, obj: &str, seen: &str) -> Vec<Device> {
+    let parsed: Vec<ChangeHash> = seen.split(',').filter_map(|h| h.parse().ok()).collect();
+    let seen: Vec<ChangeHash> = parsed
+        .into_iter()
+        .filter(|h| doc.get_change_by_hash(h).is_some())
+        .collect();
+    doc.get_changes(&seen)
+        .iter()
+        .filter_map(|c| {
+            let (o, f) = c.message()?.split_once('\t')?;
+            (o == obj && f != DELETED && f != MOVED).then(|| device_of(c.actor_id()))?
+        })
+        .collect()
+}
+
 /// Visible state of one object, or `None` if the document has no such object.
-fn derive(doc: &mut AutoCommit, obj: &str) -> Option<(ObjView, Vec<Conflict>, Option<Notice>)> {
+fn derive(doc: &mut AutoCommit, obj: &str) -> Option<Derived> {
     let (_, id) = doc.get(ROOT, obj).ok()??;
     let keys: Vec<String> = doc.keys(&id).collect();
     let mut view = ObjView {
         deleted: false,
+        moved: false,
         fields: BTreeMap::new(),
     };
     let mut conflicts = Vec::new();
     let mut notice = None;
+    let mut quarantine = BTreeSet::new();
     for key in keys {
         let heads: Vec<(Hlc, String)> = doc
             .get_all(&id, key.as_str())
@@ -84,13 +111,7 @@ fn derive(doc: &mut AutoCommit, obj: &str) -> Option<(ObjView, Vec<Conflict>, Op
         };
         if key == DELETED {
             if let Some(seen) = win.strip_prefix("1|") {
-                let seen: Vec<ChangeHash> =
-                    seen.split(',').filter_map(|h| h.parse().ok()).collect();
-                let resurrected = doc.get_changes(&seen).iter().any(|c| {
-                    c.message()
-                        .and_then(|m| m.split_once('\t'))
-                        .is_some_and(|(o, f)| o == obj && f != DELETED)
-                });
+                let resurrected = !unseen_writers(doc, obj, seen).is_empty();
                 view.deleted = !resurrected;
                 if resurrected {
                     notice = Some(Notice {
@@ -98,6 +119,18 @@ fn derive(doc: &mut AutoCommit, obj: &str) -> Option<(ObjView, Vec<Conflict>, Op
                         deleter: win_hlc.device,
                     });
                 }
+            }
+        } else if key == MOVED {
+            // What the move had not seen was made in the old circle by someone who did not know;
+            // it is held aside for the mover, never put back (S-10).
+            view.moved = true;
+            let seen = win.split_once('|').map_or("", |(_, seen)| seen);
+            for author in unseen_writers(doc, obj, seen) {
+                quarantine.insert(Quarantined {
+                    obj: obj.to_owned(),
+                    author,
+                    reason: Reason::MovedAway,
+                });
             }
         } else {
             view.fields.insert(key.clone(), win);
@@ -109,7 +142,104 @@ fn derive(doc: &mut AutoCommit, obj: &str) -> Option<(ObjView, Vec<Conflict>, Op
             }));
         }
     }
-    Some((view, conflicts, notice))
+    Some(Derived {
+        view,
+        conflicts,
+        notice,
+        quarantine,
+    })
+}
+
+/// Author of a change: the simulator derives every actor id from the device (`actor`).
+fn device_of(a: &ActorId) -> Option<Device> {
+    Some(Device::from_be_bytes(a.to_bytes().try_into().ok()?))
+}
+
+/// Revocation cuts of a document: per revoked author, how many of their own changes the revoker
+/// had seen. With two cuts for one author the stricter one applies.
+fn cuts_of(doc: &mut AutoCommit) -> BTreeMap<Device, u64> {
+    let mut cuts = BTreeMap::new();
+    let Some((_, id)) = doc.get(ROOT, CIRCLE_OBJ).ok().flatten() else {
+        return cuts;
+    };
+    let keys: Vec<String> = doc.keys(&id).collect();
+    for key in keys {
+        let Some(member) = parse_revoked(&key) else {
+            continue;
+        };
+        for (v, _) in doc.get_all(&id, key.as_str()).unwrap_or_default() {
+            if let Some(cut) = v
+                .as_str()
+                .and_then(decode)
+                .and_then(|(_, c)| c.parse::<u64>().ok())
+            {
+                cuts.entry(member)
+                    .and_modify(|c: &mut u64| *c = (*c).min(cut))
+                    .or_insert(cut);
+            }
+        }
+    }
+    cuts
+}
+
+/// The document as the circle shows it once authors were revoked: without their changes beyond
+/// the cut (S-09), and without whatever was built on those, because Automerge cannot take a
+/// change out of a history that depends on it. `None` when nobody was revoked.
+///
+/// The raw document keeps everything, so nothing is lost; only this replay is shown.
+fn taint(doc: &mut AutoCommit) -> Option<(AutoCommit, BTreeSet<Quarantined>)> {
+    let cuts = cuts_of(doc);
+    if cuts.is_empty() {
+        return None;
+    }
+    let (mut bad, mut quarantined, mut keep) = (BTreeSet::new(), BTreeSet::new(), Vec::new());
+    for c in doc.get_changes(&[]) {
+        let author = device_of(c.actor_id());
+        let direct = author
+            .and_then(|d| cuts.get(&d))
+            .is_some_and(|&cut| c.seq() > cut);
+        let dependent = c.deps().iter().any(|h| bad.contains(h));
+        if direct || dependent {
+            bad.insert(c.hash());
+            if let Some((obj, _)) = c.message().and_then(|m| m.split_once('\t'))
+                && obj != CIRCLE_OBJ
+            {
+                quarantined.insert(Quarantined {
+                    obj: obj.to_owned(),
+                    author: author.unwrap_or(Device::MAX),
+                    reason: if direct {
+                        Reason::Revoked
+                    } else {
+                        Reason::Dependent
+                    },
+                });
+            }
+        } else {
+            keep.push(c.clone());
+        }
+    }
+    let mut visible = AutoCommit::new();
+    visible
+        .apply_changes(keep)
+        .unwrap_or_else(|e| panic!("automerge replay: {e}"));
+    Some((visible, quarantined))
+}
+
+/// [`derive`] on what the circle shows (see [`taint`]).
+fn derive_vis(doc: &mut AutoCommit, obj: &str) -> Option<Derived> {
+    let mut visible = taint(doc).map(|(d, _)| d);
+    derive(visible.as_mut().unwrap_or(doc), obj)
+}
+
+/// A write needs an object that is neither deleted nor moved away.
+fn live(view: &ObjView, obj: &str) -> Result<(), Error> {
+    if view.moved {
+        return Err(format!("object {obj} was moved to another circle"));
+    }
+    if view.deleted {
+        return Err(format!("object {obj} is deleted"));
+    }
+    Ok(())
 }
 
 /// Greatest stamp stored in the given objects (all of them if `objs` is `None`).
@@ -146,19 +276,22 @@ impl AltA {
             .ok_or_else(|| format!("circle {circle} is not held by device {}", self.device))
     }
 
-    fn view_of(&mut self, circle: Circle, obj: &str) -> Result<ObjView, Error> {
+    fn view_of(&mut self, circle: Circle, obj: &str) -> Result<Derived, Error> {
         let doc = self.doc(circle)?;
-        derive(doc, obj)
-            .map(|d| d.0)
-            .ok_or_else(|| format!("no such object {obj}"))
+        derive_vis(doc, obj).ok_or_else(|| format!("no such object {obj}"))
     }
 
     fn touch(&mut self, circle: Circle, obj: &str) {
+        if obj == CIRCLE_OBJ {
+            // A revocation changes what other objects show, not only itself.
+            self.rebuild_index();
+            return;
+        }
         let view = self
             .docs
             .get_mut(&circle)
-            .and_then(|d| derive(d, obj))
-            .map(|d| d.0);
+            .and_then(|d| derive_vis(d, obj))
+            .map(|d| d.view);
         match view.as_ref().and_then(index_entry) {
             Some(t) => self.index.insert((circle, obj.to_owned()), t),
             None => self.index.remove(&(circle, obj.to_owned())),
@@ -189,6 +322,68 @@ impl AltA {
         );
         self.clock = clock;
         Ok(())
+    }
+
+    fn create_obj(
+        &mut self,
+        circle: Circle,
+        obj: &str,
+        fields: BTreeMap<String, String>,
+        now_ms: u64,
+    ) -> Result<(), Error> {
+        let doc = self.doc(circle)?;
+        if doc.get(ROOT, obj).map_err(err)?.is_some() {
+            return Err(format!("object {obj} exists"));
+        }
+        doc.put_object(ROOT, obj, ObjType::Map).map_err(err)?;
+        let writes: Vec<_> = fields.into_iter().collect();
+        self.put_stamped(circle, obj, &writes, now_ms, "*")
+    }
+
+    fn heads_text(&mut self, circle: Circle) -> Result<String, Error> {
+        Ok(self
+            .doc(circle)?
+            .get_heads()
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(","))
+    }
+
+    /// Merge into a circle's document whatever `apply` brings, after the skew check: Automerge
+    /// applies as it receives, so `apply` is tried on a fork first (`true` = that trial run).
+    fn merge(
+        &mut self,
+        circle: Circle,
+        mut apply: impl FnMut(&mut AutoCommit, bool) -> Result<(), Error>,
+    ) -> Result<bool, Error> {
+        let now = self.now;
+        let doc = self.doc(circle)?;
+        let before = doc.get_heads();
+        if let Some(now) = now {
+            let mut trial = doc.fork();
+            apply(&mut trial, true)?;
+            let objs = changed_objs(&mut trial, &before);
+            // No parseable commit message: scan everything rather than skip the check.
+            let scope = (!objs.is_empty()).then_some(&objs);
+            if let Some(h) = max_stamp(&mut trial, scope)
+                && h.skewed(now)
+            {
+                return Err(format!("stamp {h} is more than 60 s ahead of the clock"));
+            }
+        }
+        apply(doc, false)?;
+        if doc.get_heads() == before {
+            return Ok(false);
+        }
+        let objs = changed_objs(doc, &before);
+        if let Some(h) = max_stamp(doc, (!objs.is_empty()).then_some(&objs)) {
+            self.clock = self.clock.recv(h);
+        }
+        for obj in objs {
+            self.touch(circle, &obj);
+        }
+        Ok(true)
     }
 
     /// The document as bytes, as a device would persist it.
@@ -237,66 +432,90 @@ impl Replica for AltA {
     }
 
     fn apply_local(&mut self, circle: Circle, op: Op, now_ms: u64) -> Result<(), Error> {
-        let touched = match op {
+        match op {
             Op::Create { obj, fields } => {
-                if fields.is_empty() || fields.contains_key(DELETED) {
-                    return Err("create needs fields, and not the delete register".into());
+                if fields.is_empty() || fields.contains_key(DELETED) || fields.contains_key(MOVED) {
+                    return Err("create needs fields, and not a reserved register".into());
                 }
-                let doc = self.doc(circle)?;
-                if doc.get(ROOT, obj.as_str()).map_err(err)?.is_some() {
-                    return Err(format!("object {obj} exists"));
-                }
-                doc.put_object(ROOT, obj.as_str(), ObjType::Map)
-                    .map_err(err)?;
-                let writes: Vec<_> = fields.into_iter().collect();
-                self.put_stamped(circle, &obj, &writes, now_ms, "*")?;
-                obj
+                self.create_obj(circle, &obj, fields, now_ms)?;
+                self.touch(circle, &obj);
             }
             Op::Set { obj, field, value } => {
-                if field == DELETED {
-                    return Err("the delete register is not a field".into());
+                if field == DELETED || field == MOVED {
+                    return Err("the delete and move registers are not fields".into());
                 }
-                if self.view_of(circle, &obj)?.deleted {
-                    return Err(format!("object {obj} is deleted"));
-                }
+                live(&self.view_of(circle, &obj)?.view, &obj)?;
                 self.put_stamped(circle, &obj, &[(field.clone(), value)], now_ms, &field)?;
-                obj
+                self.touch(circle, &obj);
             }
             Op::Delete { obj } => {
-                if self.view_of(circle, &obj)?.deleted {
-                    return Err(format!("object {obj} is already deleted"));
-                }
-                let seen = self
-                    .doc(circle)?
-                    .get_heads()
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(",");
-                self.put_stamped(
-                    circle,
-                    &obj,
-                    &[(DELETED.to_owned(), format!("1|{seen}"))],
-                    now_ms,
-                    DELETED,
-                )?;
-                obj
+                live(&self.view_of(circle, &obj)?.view, &obj)?;
+                let seen = self.heads_text(circle)?;
+                let write = [(DELETED.to_owned(), format!("1|{seen}"))];
+                self.put_stamped(circle, &obj, &write, now_ms, DELETED)?;
+                self.touch(circle, &obj);
             }
             Op::Restore { obj } => {
-                if !self.view_of(circle, &obj)?.deleted {
+                let view = self.view_of(circle, &obj)?.view;
+                if view.moved {
+                    return Err(format!("object {obj} was moved"));
+                }
+                if !view.deleted {
                     return Err(format!("object {obj} is not deleted"));
                 }
-                self.put_stamped(
-                    circle,
-                    &obj,
-                    &[(DELETED.to_owned(), "0".to_owned())],
-                    now_ms,
-                    DELETED,
-                )?;
-                obj
+                let write = [(DELETED.to_owned(), "0".to_owned())];
+                self.put_stamped(circle, &obj, &write, now_ms, DELETED)?;
+                self.touch(circle, &obj);
             }
-        };
-        self.touch(circle, &touched);
+            Op::Revoke { member } => {
+                if member == self.device {
+                    return Err("a device cannot revoke itself".into());
+                }
+                let doc = self.doc(circle)?;
+                if cuts_of(doc).contains_key(&member) {
+                    return Err(format!("device {member} is already revoked"));
+                }
+                // How many of the member's own changes this replica holds.
+                let cut = doc
+                    .get_changes(&[])
+                    .iter()
+                    .filter(|c| device_of(c.actor_id()) == Some(member))
+                    .map(automerge::Change::seq)
+                    .max()
+                    .unwrap_or(0);
+                if doc.get(ROOT, CIRCLE_OBJ).map_err(err)?.is_none() {
+                    doc.put_object(ROOT, CIRCLE_OBJ, ObjType::Map)
+                        .map_err(err)?;
+                }
+                let field = revoked_field(member);
+                let write = [(field.clone(), cut.to_string())];
+                self.put_stamped(circle, CIRCLE_OBJ, &write, now_ms, &field)?;
+                self.touch(circle, CIRCLE_OBJ);
+            }
+            Op::Move { obj, to } => {
+                if to == circle || !self.docs.contains_key(&to) {
+                    return Err(format!(
+                        "device {} cannot move an object from circle {circle} to {to}",
+                        self.device
+                    ));
+                }
+                let seen = self.view_of(circle, &obj)?;
+                live(&seen.view, &obj)?;
+                if !seen.conflicts.is_empty() {
+                    return Err(format!(
+                        "object {obj} has open conflicts: resolve them before moving it"
+                    ));
+                }
+                // ponytail: two documents, two commits. A crash between them leaves the object in
+                // both circles; B commits both in one transaction.
+                self.create_obj(to, &obj, seen.view.fields, now_ms)?;
+                let heads = self.heads_text(circle)?;
+                let write = [(MOVED.to_owned(), format!("{to}|{heads}"))];
+                self.put_stamped(circle, &obj, &write, now_ms, MOVED)?;
+                self.touch(to, &obj);
+                self.touch(circle, &obj);
+            }
+        }
         Ok(())
     }
 
@@ -309,41 +528,27 @@ impl Replica for AltA {
 
     fn receive(&mut self, circle: Circle, st: &mut ASync, msg: &[u8]) -> Result<bool, Error> {
         let message = sync::Message::decode(msg).map_err(err)?;
-        let now = self.now;
-        let doc = self.doc(circle)?;
-        let before = doc.get_heads();
-        if let Some(now) = now {
-            // Automerge applies a message as it receives it, so a skewed stamp cannot be refused
-            // afterwards. Try the message on a fork (with a copy of the session state) first.
-            let mut trial = doc.fork();
-            let mut trial_state = st.0.clone();
-            trial
-                .sync()
-                .receive_sync_message(&mut trial_state, message.clone())
-                .map_err(err)?;
-            let objs = changed_objs(&mut trial, &before);
-            // No parseable commit message: scan everything rather than skip the check.
-            let scope = (!objs.is_empty()).then_some(&objs);
-            if let Some(h) = max_stamp(&mut trial, scope)
-                && h.skewed(now)
-            {
-                return Err(format!("stamp {h} is more than 60 s ahead of the clock"));
-            }
-        }
-        doc.sync()
-            .receive_sync_message(&mut st.0, message)
-            .map_err(err)?;
-        if doc.get_heads() == before {
-            return Ok(false);
-        }
-        let objs = changed_objs(doc, &before);
-        if let Some(h) = max_stamp(doc, (!objs.is_empty()).then_some(&objs)) {
-            self.clock = self.clock.recv(h);
-        }
-        for obj in objs {
-            self.touch(circle, &obj);
-        }
-        Ok(true)
+        self.merge(circle, |doc, trial| {
+            // The trial run gets a copy of the session state so the real one is not advanced twice.
+            let mut copy = st.0.clone();
+            let state = if trial { &mut copy } else { &mut st.0 };
+            doc.sync()
+                .receive_sync_message(state, message.clone())
+                .map_err(err)
+        })
+    }
+
+    fn upload(&mut self, circle: Circle) -> Vec<u8> {
+        self.docs
+            .get_mut(&circle)
+            .map(AutoCommit::save)
+            .unwrap_or_default()
+    }
+
+    fn accept_upload(&mut self, circle: Circle, msg: &[u8]) -> Result<bool, Error> {
+        self.merge(circle, |doc, _| {
+            doc.load_incremental(msg).map(|_| ()).map_err(err)
+        })
     }
 
     fn snapshot(&mut self, circle: Circle) -> Snapshot {
@@ -351,12 +556,21 @@ impl Replica for AltA {
         let Some(doc) = self.docs.get_mut(&circle) else {
             return snap;
         };
+        let mut visible = taint(doc).map(|(d, held)| {
+            snap.quarantine = held;
+            d
+        });
+        let doc = visible.as_mut().unwrap_or(doc);
         let objs: Vec<String> = doc.keys(ROOT).collect();
-        for obj in objs {
-            if let Some((view, conflicts, notice)) = derive(doc, &obj) {
-                snap.conflicts.extend(conflicts);
-                snap.notices.extend(notice);
-                snap.objects.insert(obj, view);
+        for obj in objs.into_iter().filter(|o| o != CIRCLE_OBJ) {
+            if let Some(d) = derive(doc, &obj) {
+                snap.quarantine.extend(d.quarantine);
+                if d.view.moved {
+                    continue;
+                }
+                snap.conflicts.extend(d.conflicts);
+                snap.notices.extend(d.notice);
+                snap.objects.insert(obj, d.view);
             }
         }
         snap
