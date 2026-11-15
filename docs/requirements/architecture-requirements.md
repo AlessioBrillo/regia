@@ -1,4 +1,4 @@
-# Architecture requirements (AR-01 … AR-15)
+# Architecture requirements (AR-01 … AR-18)
 
 Source: technical report v1.0 §2. Status values: `open` (no evidence yet), `partial`, `verified` (reproducible
 evidence stored). Every requirement needs a verification method and an owner before Gate G0 closes.
@@ -20,6 +20,9 @@ evidence stored). Every requirement needs a verification method and an owner bef
 | AR-13 | Modular evolution | Bounded contexts, internal APIs, data ownership, backward-compatible migrations | Review + migration tests | @AlessioBrillo | open |
 | AR-14 | Different experiences, common rules | Same policies and source of truth for all profiles | Cross-surface policy tests | @AlessioBrillo | open |
 | AR-15 | Verifiable security | Threat modeling, abuse suite, isolation tests, independent review before widening trials | Security review gate | @AlessioBrillo | partial (threat model baseline; review not done) |
+| AR-16 | One capture surface, many areas | Any text or voice input becomes proposed, sourced objects filed into the right area, findable visually and by question | Cited-query and capture golden sets (AI-01, WF-01/02) | @AlessioBrillo | open |
+| AR-17 | Organisations with roles | Teams and organisations as circles with roles, same policy engine and source of truth as personal use | Cross-circle policy tests; defined at G4 | @AlessioBrillo | open (G4) |
+| AR-18 | Agile practices as derived views | Backlog, sprint, review and retrospective are views over tasks, projects and events, never a second source of truth | Projection-consistency tests; defined at G4 | @AlessioBrillo | open (G4) |
 
 ## Statements that need a precise specification before implementation (report §2.1)
 
