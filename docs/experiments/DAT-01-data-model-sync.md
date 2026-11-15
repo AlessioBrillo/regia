@@ -1,6 +1,6 @@
 # DAT-01 — Data model and sync benchmark
 
-Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Not executed yet: S-06, S-08, S-09, S-10, S-12 and alternative C (increment 2). No alternative is selected. Report §4.3, §4.4, §7.3.
+Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Increment 2 in progress: clocks, a real process kill for S-07 and S-12 landed in #31; S-09 and S-10 are next, then S-06, S-08 and alternative C. No alternative is selected. Report §4.3, §4.4, §7.3.
 Feeds ADR-002 and ADR-003. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
@@ -53,6 +53,12 @@ increment 2 runs, so results cannot bend them.
   approvals on SQLite with an op log.
 - **S-06, migration v0→v1:** a v0 client keeps and forwards fields it does not know without loss, shows what it
   understands and flags "update the app". It writes only v0 fields.
+- **S-10, concurrent edit in the old circle (added 2026-11-15, before any S-10 result):** an edit made offline in the
+  old circle by someone who had not seen the move does not reappear there. It is quarantined on the device of
+  whoever moved the object, shown to them as a proposal, and its author gets a notice. Same mechanism as S-09: never
+  lost silently, never merged automatically.
+- **S-10, move with open conflicts (added 2026-11-15):** refused with "resolve the conflicts first". Nothing is
+  carried across circles.
 - **Clocks:** the HLC merges every received stamp and is persisted across restarts; a stamp more than 60 s ahead of
   the receiver's clock is refused as skew. Default chosen by the engineer, reviewable before results.
 
