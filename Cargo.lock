@@ -1863,6 +1863,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "regia-spike-ai01"
+version = "0.0.0"
+dependencies = [
+ "regia-domain",
+ "serde",
+ "serde_json",
+ "time",
+]
+
+[[package]]
 name = "regia-spike-dat01"
 version = "0.0.0"
 dependencies = [
