@@ -34,6 +34,25 @@ pub type Error = String;
 
 /// Reserved field holding the delete/restore register of an object. `"1"` = deleted.
 pub const DELETED: &str = "__deleted";
+/// Reserved field of an object moved to another circle (S-10). Once written the object is gone
+/// from the circle that holds it.
+pub const MOVED: &str = "__moved";
+/// Reserved object of a circle that holds its membership registers (S-09). Never shown.
+pub const CIRCLE_OBJ: &str = "__circle";
+
+/// Field of [`CIRCLE_OBJ`] that revokes `member`. Its value is the cut: how many of the member's
+/// own writes the revoker had seen. The cut is a count of the author's own log, so it is causal
+/// and no clock can move it.
+#[must_use]
+pub fn revoked_field(member: Device) -> String {
+    format!("revoked:{member}")
+}
+
+/// Inverse of [`revoked_field`].
+#[must_use]
+pub fn parse_revoked(field: &str) -> Option<Device> {
+    field.strip_prefix("revoked:")?.parse().ok()
+}
 
 /// Hybrid logical clock. Ordering is the conflict winner order: time, counter, then device id
 /// (the deterministic tie-break).
@@ -159,6 +178,19 @@ pub enum Op {
         /// Object id.
         obj: String,
     },
+    /// Remove `member` from the circle (S-09). Everything of theirs the revoker has not seen is
+    /// held aside. The relay stops syncing the circle with them (see `Sim::revoke`).
+    Revoke {
+        /// The device being revoked.
+        member: Device,
+    },
+    /// Move an object from the circle it is applied in to `to` (S-10). The mover must hold both.
+    Move {
+        /// Object id.
+        obj: String,
+        /// Destination circle.
+        to: Circle,
+    },
 }
 
 /// One visible object.
@@ -166,6 +198,8 @@ pub enum Op {
 pub struct ObjView {
     /// Effective deletion: the delete won and nothing it had not seen was written since.
     pub deleted: bool,
+    /// The object was moved to another circle. A snapshot omits such objects.
+    pub moved: bool,
     /// Winning value per field (the delete register is not a field).
     pub fields: BTreeMap<String, String>,
 }
@@ -192,6 +226,30 @@ pub struct Notice {
     pub deleter: Device,
 }
 
+/// Why a write is held aside instead of shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Reason {
+    /// Its author was revoked and the revoker had not seen it (S-09).
+    Revoked,
+    /// It was made in the old circle by someone who had not seen the object move (S-10).
+    MovedAway,
+    /// It was built on a revoked author's unseen change, which cannot be removed from the history
+    /// without it (Automerge only).
+    Dependent,
+}
+
+/// A write held aside: not visible, not merged into any object, not lost. The author sees the
+/// same entry once it syncs, which is how they are told.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Quarantined {
+    /// Object id.
+    pub obj: String,
+    /// Device that wrote it.
+    pub author: Device,
+    /// Why.
+    pub reason: Reason,
+}
+
 /// Everything a replica shows for one circle. Equal snapshots = converged.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Snapshot {
@@ -201,6 +259,8 @@ pub struct Snapshot {
     pub conflicts: BTreeSet<Conflict>,
     /// Pending notices.
     pub notices: BTreeSet<Notice>,
+    /// Writes held aside for an admin (S-09, S-10).
+    pub quarantine: BTreeSet<Quarantined>,
 }
 
 /// Local search index: `(circle, object) -> title` for every non-deleted object.
@@ -228,6 +288,12 @@ pub trait Replica: Sized {
     fn snapshot(&mut self, circle: Circle) -> Snapshot;
     /// The incrementally maintained local index.
     fn index(&self) -> Index;
+    /// This device's whole store of `circle` as one message: what a revoked device sends when it
+    /// returns (S-09). It receives nothing back.
+    fn upload(&mut self, circle: Circle) -> Vec<u8>;
+    /// Merge an [`upload`](Replica::upload) of a revoked device. Same checks as a sync message,
+    /// including the skew refusal. `true` if local state changed.
+    fn accept_upload(&mut self, circle: Circle, msg: &[u8]) -> Result<bool, Error>;
     /// Drop the index and rebuild it from the source of truth (S-11).
     fn rebuild_index(&mut self);
     /// Bytes the store occupies (serialised document / database pages).
@@ -238,7 +304,7 @@ pub trait Replica: Sized {
 
 /// Index entry of one object from its visible state, if it should be indexed.
 pub(crate) fn index_entry(view: &ObjView) -> Option<String> {
-    if view.deleted {
+    if view.deleted || view.moved {
         None
     } else {
         view.fields.get("title").cloned()
