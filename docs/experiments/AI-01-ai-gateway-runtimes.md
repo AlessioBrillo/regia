@@ -1,6 +1,7 @@
 # AI-01 — AI gateway, task router and runtime evaluation
 
-Status: **plan, not executed.** Report §4.8, §4.10, §8.3. Feeds ADR-008 and ADR-009. Owner: @AlessioBrillo
+Status: **plan, not executed.** Increment 1 rules and golden set frozen 2026-11-15 in
+[`ai-01/`](ai-01/rules-increment-1.md). Report §4.8, §4.10, §8.3. Feeds ADR-008 and ADR-009. Owner: @AlessioBrillo
 ([#24](https://github.com/AlessioBrillo/regia/issues/24)).
 
 ```text
