@@ -21,6 +21,9 @@ allow = [
   "BSD-3-Clause",
   "MIT-0",
   "Zlib",
+  # Permissive, added for the AI-01 R4 adapter (ureq -> rustls, ring, webpki-roots):
+  "ISC",
+  "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
 
