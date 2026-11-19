@@ -3,6 +3,12 @@ all-features = true
 
 [advisories]
 version = 2
+# Unmaintained (not vulnerable) with no safe upgrade; reached only through cedar-policy (ADR-005 trial) and the
+# throwaway regorus spike. Revisit when cedar-policy or regorus drops chrono, or when a CVE is filed against it.
+ignore = [
+  "RUSTSEC-2026-0543", # chrono
+  "RUSTSEC-2026-0555", # chrono-tz
+]
 
 [licenses]
 version = 2
