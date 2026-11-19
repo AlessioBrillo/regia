@@ -63,6 +63,17 @@ expert secretary. It should later replace agile ceremonies in structured organis
 use stays the pilot (G3); organisations (AR-17) and agile as derived views (AR-18) belong to **G4**, and must reuse
 the same policy engine and source of truth. AR-16 is the G2 slice target. Nothing in the G3 pilot perimeter changes.
 
+## Owner decisions (2026-11-19)
+
+- **Area is not a circle.** An *area* (work, home, project…) is "where it is filed"; a *circle* is "who can see it".
+  Independent dimensions. One primary area per object, proposed by the model with evidence (`Assertion::Proposed`) and
+  confirmed by the user; the list of areas is user-defined with a suggested starter set. Scope of AI-01 increment 2,
+  not of increment 1 (its rules are frozen).
+- **Voice** gets its own card, VOX-01, opened right after AI-01 increment 1 closes; the text transcript stays the
+  auditable intermediate.
+- **AI-01 runs:** R3 (Ollama) on the Arch box; R4 (Mistral EU) with synthetic input only, key from the environment.
+  The router still blocks canary, `restricted` and `secret` cases from any cloud runtime.
+
 ## Out of the first vertical slice (not out of the vision)
 
 Payments, open banking, agentic phone calls, public-administration automation, functional health assistance, advanced
