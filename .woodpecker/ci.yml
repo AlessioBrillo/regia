@@ -13,6 +13,8 @@ steps:
       CARGO_HOME: /cargo-home
       CARGO_TERM_COLOR: never
       RUSTDOCFLAGS: -Dwarnings
+      # Bound parallel rustc: 12 jobs of the spike crates (rustls, cedar) exhaust the 5 GB Docker VM. No check changes.
+      CARGO_BUILD_JOBS: "4"
     volumes:
       - ci-cargo:/cargo-home
     commands:
