@@ -4,7 +4,10 @@
 //! deterministic code validates every proposal against the input before it can reach a user (report §4.8, AR-06).
 
 pub mod contract;
+pub mod llm;
 pub mod r0;
+pub mod r3;
+pub mod r4;
 pub mod router;
 pub mod score;
 pub mod validate;
