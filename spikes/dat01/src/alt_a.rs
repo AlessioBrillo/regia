@@ -21,7 +21,8 @@ use automerge::{
 
 use crate::{
     CIRCLE_OBJ, Circle, Conflict, DELETED, Device, Error, Hlc, Index, MOVED, Notice, ObjView, Op,
-    Quarantined, Reason, Replica, Snapshot, index_entry, parse_revoked, pick, revoked_field,
+    Quarantined, Reason, Replica, Schema, Snapshot, index_entry, parse_revoked, pick,
+    revoked_field,
 };
 
 const SEP: char = '\u{1}';
@@ -42,6 +43,7 @@ pub struct AltA {
     clock: Hlc,
     now: Option<u64>,
     index: Index,
+    schema: Schema,
 }
 
 #[allow(clippy::needless_pass_by_value)] // used as `.map_err(err)`, which passes the error by value
@@ -420,7 +422,12 @@ impl Replica for AltA {
             clock: Hlc::default(),
             now: None,
             index: Index::new(),
+            schema: Schema::V0,
         }
+    }
+
+    fn set_schema(&mut self, schema: Schema) {
+        self.schema = schema;
     }
 
     fn device(&self) -> Device {
@@ -434,6 +441,9 @@ impl Replica for AltA {
     fn apply_local(&mut self, circle: Circle, op: Op, now_ms: u64) -> Result<(), Error> {
         match op {
             Op::Create { obj, fields } => {
+                for f in fields.keys() {
+                    self.schema.check_write(f)?;
+                }
                 if fields.is_empty() || fields.contains_key(DELETED) || fields.contains_key(MOVED) {
                     return Err("create needs fields, and not a reserved register".into());
                 }
@@ -441,6 +451,7 @@ impl Replica for AltA {
                 self.touch(circle, &obj);
             }
             Op::Set { obj, field, value } => {
+                self.schema.check_write(&field)?;
                 if field == DELETED || field == MOVED {
                     return Err("the delete and move registers are not fields".into());
                 }
@@ -573,6 +584,7 @@ impl Replica for AltA {
                 snap.objects.insert(obj, d.view);
             }
         }
+        self.schema.mask(&mut snap);
         snap
     }
 

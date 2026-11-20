@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     CIRCLE_OBJ, Circle, Conflict, DELETED, Device, Error, Hlc, Index, MOVED, Notice, ObjView, Op,
-    Quarantined, Reason, Replica, Snapshot, index_entry, parse_revoked, pick, revoked_field,
+    Quarantined, Reason, Replica, Schema, Snapshot, index_entry, parse_revoked, pick,
+    revoked_field,
 };
 
 type Vv = BTreeMap<Device, u64>;
@@ -59,6 +60,7 @@ pub struct AltB {
     clock: Hlc,
     now: Option<u64>,
     index: Index,
+    schema: Schema,
 }
 
 /// Highest author sequence per device in `circle`. Takes a connection so a write can read it
@@ -285,6 +287,7 @@ impl AltB {
             clock,
             now: None,
             index: Index::new(),
+            schema: Schema::V0,
         };
         me.rebuild_index();
         Ok(me)
@@ -533,6 +536,10 @@ impl Replica for AltB {
         Self::with(device, circles, conn).unwrap_or_else(|e| panic!("sqlite: {e}"))
     }
 
+    fn set_schema(&mut self, schema: Schema) {
+        self.schema = schema;
+    }
+
     fn device(&self) -> Device {
         self.device
     }
@@ -547,6 +554,15 @@ impl Replica for AltB {
                 "circle {circle} is not held by device {}",
                 self.device
             ));
+        }
+        match &op {
+            Op::Create { fields, .. } => {
+                for f in fields.keys() {
+                    self.schema.check_write(f)?;
+                }
+            }
+            Op::Set { field, .. } => self.schema.check_write(field)?,
+            _ => {}
         }
         let batches = self.plan(circle, op)?;
         // IMMEDIATE takes the write lock before the sequence number is read: two processes of
@@ -662,6 +678,7 @@ impl Replica for AltB {
             snap.notices.extend(d.notice);
             snap.objects.insert(obj, d.view);
         }
+        self.schema.mask(&mut snap);
         snap
     }
 
