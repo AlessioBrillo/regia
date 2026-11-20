@@ -17,6 +17,8 @@ thiserror = "2"
 time = { version = "0.3", features = ["serde-well-known"] }
 uuid = { version = "1", features = ["v7", "serde"] }
 proptest = "1"
+# JSON bodies and rustls only: no gzip, cookies or other defaults (smaller TLS build, smaller audit surface).
+ureq = { version = "3", default-features = false, features = ["json", "rustls"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
