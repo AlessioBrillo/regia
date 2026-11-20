@@ -9,8 +9,8 @@ use regia_domain::Confidentiality;
 use regia_spike_ai01::{Gateway, Outcome, Validation, llm, r3, r3::Ollama, r4};
 use serde_json::json;
 
-const OBJECTS: &str = r#"{"outcome":"objects","objects":[{"type":"task","title":"Chiamare il dentista",
-"evidence":"domani alle 15","date":{"role":"due","value":"2026-11-17","time":"15:00","evidence":"domani alle 15"}}]}"#;
+const OBJECTS: &str = r#"{"outcome":"objects","objects":[{"type":"task","title":"Call the dentist",
+"evidence":"tomorrow at 3pm","date":{"role":"due","value":"2026-11-17","time":"15:00","evidence":"tomorrow at 3pm"}}]}"#;
 
 #[test]
 fn system_prompt_is_the_frozen_block() {
@@ -55,7 +55,7 @@ fn c02_truncated_output_creates_nothing() {
         local: true,
         out: Err(err),
     }));
-    let (res, _) = g.run(&req("domani alle 15", Confidentiality::Circle), "m");
+    let (res, _) = g.run(&req("tomorrow at 3pm", Confidentiality::Circle), "m");
     let res = res.unwrap();
     assert!(res.proposal.is_none());
     assert!(matches!(res.validation, Validation::Failed(_)));
