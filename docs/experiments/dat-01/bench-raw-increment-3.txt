@@ -1,0 +1,218 @@
+reps=10 (seeds 1..=10) profile=None clients=None; times are in-process CPU, no network
+adapter LOC (non-blank, non-comment): A=539 B=612 C=178
+
+RAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct
+RAW A small 2 1 132.2 225.2 0.0 0.0 0 0 105 0.36 0 0 100.00
+RAW B small 2 1 94.5 146.1 0.0 0.0 0 0 1241 0.12 0 0 100.00
+RAW C small 2 1 121.0 238.3 0.0 0.0 0 0 1058 0.28 0 0 100.00
+RAW A small 2 2 187.2 308.2 11.7 16.9 8565 32 104 0.85 12 12 100.00
+RAW B small 2 2 82.6 166.0 1.4 2.9 10039 24 1152 0.30 12 12 100.00
+RAW C small 2 2 187.1 317.2 5.4 9.3 13514 32 900 0.50 12 12 100.00
+RAW A small 2 3 110.1 258.4 3.0 6.1 4283 16 102 0.89 6 6 100.00
+RAW B small 2 3 86.3 200.6 1.0 1.3 5025 12 1155 0.28 6 6 100.00
+RAW C small 2 3 178.4 381.2 3.3 3.8 6684 16 1121 0.38 6 6 100.00
+RAW A small 2 4 110.2 185.2 8.0 10.8 8344 32 100 0.49 12 12 100.00
+RAW B small 2 4 103.0 132.3 1.8 1.9 9876 24 1124 0.27 12 12 100.00
+RAW C small 2 4 136.0 645.7 5.4 8.3 13212 32 1039 0.33 12 12 100.00
+RAW A small 2 5 107.7 195.7 8.1 12.0 8415 32 103 0.89 12 12 100.00
+RAW B small 2 5 96.7 151.6 2.0 1.9 9898 24 1293 0.24 12 12 100.00
+RAW C small 2 5 177.6 244.1 5.8 7.8 13394 32 932 0.37 12 12 100.00
+RAW A small 2 6 106.4 167.9 10.8 17.2 12505 48 101 0.59 18 18 100.00
+RAW B small 2 6 73.7 120.2 2.0 3.1 14760 36 1247 0.28 18 18 100.00
+RAW C small 2 6 143.6 196.6 8.8 11.3 19809 48 849 0.37 18 18 100.00
+RAW A small 2 7 114.5 176.5 6.4 12.3 8568 32 104 0.62 12 12 100.00
+RAW B small 2 7 74.7 159.8 2.2 2.0 10072 24 1210 0.23 12 12 100.00
+RAW C small 2 7 122.6 198.6 4.7 6.7 13437 32 1194 0.38 12 12 100.00
+RAW A small 2 8 109.4 144.5 3.1 6.0 4287 16 105 0.33 6 6 100.00
+RAW B small 2 8 78.1 139.9 0.9 1.4 5025 12 1183 0.17 6 6 100.00
+RAW C small 2 8 183.5 275.2 3.6 4.0 6710 16 981 0.36 6 6 100.00
+RAW A small 2 9 113.9 570.3 3.9 5.4 4310 16 103 0.40 6 6 100.00
+RAW B small 2 9 74.2 126.8 0.6 1.3 5047 12 1260 0.25 6 6 100.00
+RAW C small 2 9 149.2 354.1 3.3 5.2 6833 16 1113 0.29 6 6 100.00
+RAW A small 2 10 110.1 292.5 6.1 10.2 8595 32 105 0.53 12 12 100.00
+RAW B small 2 10 60.7 91.7 1.6 1.9 10072 24 1293 0.22 12 12 100.00
+RAW C small 2 10 137.7 206.8 4.8 7.3 13785 36 932 0.47 12 12 100.00
+RAW A small 5 1 115.2 170.1 42.5 47.4 43962 180 129 0.43 36 36 100.00
+RAW B small 5 1 78.7 131.1 7.1 11.0 45824 132 1536 0.20 36 36 100.00
+RAW C small 5 1 139.8 220.4 20.6 31.7 59779 174 1410 0.25 36 36 100.00
+RAW A small 5 2 100.7 233.1 48.0 62.3 72180 300 157 0.67 36 36 100.00
+RAW B small 5 2 74.7 182.0 10.9 13.9 63846 219 1902 0.28 36 36 100.00
+RAW C small 5 2 146.0 250.4 44.3 48.7 90978 285 1430 0.48 36 36 100.00
+RAW A small 5 3 115.8 1051.4 36.3 56.0 44220 180 129 0.97 36 36 100.00
+RAW B small 5 3 53.2 124.2 5.7 8.3 46121 132 1682 0.57 36 36 100.00
+RAW C small 5 3 137.9 376.4 28.7 42.5 60105 174 1227 0.48 36 36 100.00
+RAW A small 5 4 95.2 272.2 36.3 54.7 40789 172 158 1.91 18 18 100.00
+RAW B small 5 4 122.0 189.5 4.6 10.3 37337 125 1886 0.25 18 18 100.00
+RAW C small 5 4 123.9 410.6 16.2 39.1 50490 162 1614 0.28 18 18 100.00
+RAW A small 5 5 77.5 134.8 48.0 97.1 65046 272 163 0.70 30 30 100.00
+RAW B small 5 5 90.7 218.3 11.5 19.1 58187 198 1925 0.38 30 30 100.00
+RAW C small 5 5 105.5 247.5 40.2 50.0 80710 259 1509 0.26 30 30 100.00
+RAW A small 5 6 55.8 109.3 30.2 38.8 54446 228 159 0.51 24 24 100.00
+RAW B small 5 6 64.7 103.3 8.9 11.2 47730 166 2001 0.40 24 24 100.00
+RAW C small 5 6 91.0 370.6 19.7 54.1 67545 217 1465 0.64 24 24 100.00
+RAW A small 5 7 97.1 192.1 29.5 47.6 49513 212 170 0.60 18 18 100.00
+RAW B small 5 7 44.2 85.1 7.1 5.5 43012 154 1994 0.27 18 18 100.00
+RAW C small 5 7 101.9 149.3 16.2 23.2 61103 202 1736 0.77 18 18 100.00
+RAW A small 5 8 87.1 426.9 32.8 61.5 46676 192 129 0.48 36 36 100.00
+RAW B small 5 8 67.4 124.0 15.1 10.5 46364 141 1646 0.35 36 36 100.00
+RAW C small 5 8 126.6 260.5 28.5 24.2 63655 186 1264 0.17 36 36 100.00
+RAW A small 5 9 110.8 189.8 37.7 80.8 48927 204 147 0.60 24 24 100.00
+RAW B small 5 9 61.0 115.6 7.8 8.6 42355 146 1815 0.19 24 24 100.00
+RAW C small 5 9 166.4 543.9 25.3 23.1 60900 191 1504 0.17 24 24 100.00
+RAW A small 5 10 137.7 471.8 33.4 50.2 56657 236 147 0.62 36 36 100.00
+RAW B small 5 10 46.5 85.9 5.7 8.5 56827 172 1865 0.21 36 36 100.00
+RAW C small 5 10 78.7 156.1 19.4 36.9 73604 226 1276 0.36 36 36 100.00
+RAW A large 2 1 148.7 292.7 0.0 0.0 0 0 45 19.63 0 0 100.00
+RAW B large 2 1 289.4 840.4 0.0 0.0 0 0 701 5.31 0 0 100.00
+RAW C large 2 1 269.1 722.3 0.0 0.0 0 0 489 8.18 0 0 100.00
+RAW A large 2 2 181.7 410.5 0.0 0.0 0 0 45 7.48 0 0 100.00
+RAW B large 2 2 164.9 496.2 0.0 0.0 0 0 679 2.80 0 0 100.00
+RAW C large 2 2 130.9 315.9 0.0 0.0 0 0 465 2.97 0 0 100.00
+RAW A large 2 3 88.6 160.5 0.0 0.0 0 0 45 22.46 0 0 100.00
+RAW B large 2 3 108.0 196.2 0.0 0.0 0 0 673 3.95 0 0 100.00
+RAW C large 2 3 87.8 177.8 0.0 0.0 0 0 461 8.55 0 0 100.00
+RAW A large 2 4 71.6 130.0 0.0 0.0 0 0 45 9.98 0 0 100.00
+RAW B large 2 4 305.3 1433.3 0.0 0.0 0 0 690 3.03 0 0 100.00
+RAW C large 2 4 291.4 1082.8 0.0 0.0 0 0 479 18.77 0 0 100.00
+RAW A large 2 5 210.2 762.5 0.0 0.0 0 0 45 42.44 0 0 100.00
+RAW B large 2 5 264.0 795.5 0.0 0.0 0 0 690 4.91 0 0 100.00
+RAW C large 2 5 197.7 465.6 0.0 0.0 0 0 479 12.40 0 0 100.00
+RAW A large 2 6 210.7 673.4 141.4 182.7 31930 16 44 9.64 150 150 100.00
+RAW B large 2 6 242.5 667.4 27.9 58.8 122258 12 730 2.35 150 150 100.00
+RAW C large 2 6 204.8 560.1 52.8 107.3 95099 16 513 8.03 150 150 100.00
+RAW A large 2 7 208.2 576.1 0.0 0.0 0 0 45 20.43 0 0 100.00
+RAW B large 2 7 239.1 562.0 0.0 0.0 0 0 712 2.56 0 0 100.00
+RAW C large 2 7 248.0 488.8 0.0 0.0 0 0 506 5.57 0 0 100.00
+RAW A large 2 8 188.3 444.2 0.0 0.0 0 0 45 35.78 0 0 100.00
+RAW B large 2 8 225.5 521.7 0.0 0.0 0 0 673 4.81 0 0 100.00
+RAW C large 2 8 128.8 288.0 0.0 0.0 0 0 461 7.21 0 0 100.00
+RAW A large 2 9 147.3 370.9 0.0 0.0 0 0 45 30.99 0 0 100.00
+RAW B large 2 9 230.1 411.8 0.0 0.0 0 0 676 6.60 0 0 100.00
+RAW C large 2 9 235.2 471.0 0.0 0.0 0 0 461 12.72 0 0 100.00
+RAW A large 2 10 170.9 348.1 0.0 0.0 0 0 45 14.66 0 0 100.00
+RAW B large 2 10 210.8 502.7 0.0 0.0 0 0 690 3.22 0 0 100.00
+RAW C large 2 10 255.5 724.0 0.0 0.0 0 0 479 10.88 0 0 100.00
+RAW A large 5 1 175.7 388.5 0.0 0.0 0 0 45 18.54 0 0 100.00
+RAW B large 5 1 219.2 448.6 0.0 0.0 0 0 683 4.43 0 0 100.00
+RAW C large 5 1 226.8 595.2 0.0 0.0 0 0 471 7.60 0 0 100.00
+RAW A large 5 2 174.0 621.2 211.6 253.1 62153 32 47 14.02 200 200 100.00
+RAW B large 5 2 207.4 482.9 52.7 70.3 212747 24 731 2.78 200 200 100.00
+RAW C large 5 2 225.3 446.7 112.4 145.9 166999 32 509 8.20 200 200 100.00
+RAW A large 5 3 168.0 313.2 169.3 249.6 62131 32 47 40.79 200 200 100.00
+RAW B large 5 3 221.4 517.5 55.6 88.3 212658 24 726 10.53 200 200 100.00
+RAW C large 5 3 214.3 404.6 63.2 115.7 166921 32 506 14.12 200 200 100.00
+RAW A large 5 4 161.2 274.6 0.0 0.0 0 0 45 18.52 0 0 100.00
+RAW B large 5 4 238.4 448.3 0.0 0.0 0 0 697 4.47 0 0 100.00
+RAW C large 5 4 253.6 455.1 0.0 0.0 0 0 478 9.74 0 0 100.00
+RAW A large 5 5 180.6 350.0 92.8 149.5 32139 16 45 14.09 150 150 100.00
+RAW B large 5 5 223.1 453.4 27.9 60.1 122270 12 704 3.90 150 150 100.00
+RAW C large 5 5 229.7 396.7 39.9 81.2 95193 16 490 7.85 150 150 100.00
+RAW A large 5 6 170.8 318.6 165.6 236.5 62088 32 47 9.27 200 200 100.00
+RAW B large 5 6 211.4 468.5 46.3 83.4 212656 24 747 2.49 200 200 100.00
+RAW C large 5 6 230.7 361.2 65.7 114.0 166902 32 524 6.76 200 200 100.00
+RAW A large 5 7 180.1 341.2 0.0 0.0 0 0 45 11.86 0 0 100.00
+RAW B large 5 7 240.7 569.1 0.0 0.0 0 0 697 3.40 0 0 100.00
+RAW C large 5 7 231.7 503.8 0.0 0.0 0 0 481 9.05 0 0 100.00
+RAW A large 5 8 178.6 331.5 258.1 357.3 72463 44 49 60.54 200 200 100.00
+RAW B large 5 8 259.9 868.1 91.3 88.1 286937 34 765 10.48 200 200 100.00
+RAW C large 5 8 305.4 1193.5 282.2 270.0 221319 44 528 15.37 200 200 100.00
+RAW A large 5 9 234.3 845.9 0.0 0.0 0 0 45 68.01 0 0 100.00
+RAW B large 5 9 272.8 723.6 0.0 0.0 0 0 695 19.98 0 0 100.00
+RAW C large 5 9 252.2 573.6 0.0 0.1 0 0 483 21.06 0 0 100.00
+RAW A large 5 10 193.6 480.6 88.6 249.5 31913 16 45 24.86 150 150 100.00
+RAW B large 5 10 353.2 1527.3 28.1 144.6 122176 12 706 4.01 150 150 100.00
+RAW C large 5 10 267.6 865.8 60.1 80.9 95095 16 493 5.88 150 150 100.00
+
+SUMMARY (median / p95 over seeds)
+alt profile clients | write p50 us | write p95 us | sync ms med/p95 | resync ms med | bytes med | storage B/op | rebuild ms | conflicts/forced | intent %
+A large 2 | 165 | 400 | 0/141 | 0 | 0 | 45 | 20.4 | 0/0 | 100.00
+A large 5 | 178 | 401 | 93/258 | 236 | 32139 | 45 | 18.5 | 150/150 | 100.00
+A small 2 | 114 | 279 | 6/12 | 11 | 8415 | 104 | 0.6 | 12/12 | 100.00
+A small 5 | 101 | 334 | 36/48 | 56 | 49513 | 157 | 0.6 | 36/36 | 100.00
+B large 2 | 208 | 599 | 0/28 | 0 | 0 | 690 | 3.9 | 0/0 | 100.00
+B large 5 | 240 | 609 | 28/91 | 70 | 122270 | 706 | 4.4 | 150/150 | 100.00
+B small 2 | 79 | 159 | 2/2 | 2 | 9898 | 1241 | 0.3 | 12/12 | 100.00
+B small 5 | 69 | 149 | 8/15 | 11 | 46364 | 1886 | 0.3 | 36/36 | 100.00
+C large 2 | 187 | 503 | 0/53 | 0 | 0 | 479 | 8.5 | 0/0 | 100.00
+C large 5 | 240 | 544 | 60/282 | 81 | 95193 | 493 | 9.0 | 150/150 | 100.00
+C small 2 | 154 | 290 | 5/9 | 7 | 13394 | 1039 | 0.4 | 12/12 | 100.00
+C small 5 | 119 | 371 | 25/44 | 39 | 63655 | 1465 | 0.4 | 36/36 | 100.00
+=====BACKLOG
+reps=10 ops_per_client=1000
+A seed=1 Outcome { ops: 5000, payload: 91274, bytes: 1385652, sync_ms: 5609.756295, converged: true, lost: 0, leaked: false }
+A seed=2 Outcome { ops: 5000, payload: 91274, bytes: 1386002, sync_ms: 5182.581948, converged: true, lost: 0, leaked: false }
+A seed=3 Outcome { ops: 5000, payload: 91223, bytes: 1385802, sync_ms: 4964.402566000001, converged: true, lost: 0, leaked: false }
+A seed=4 Outcome { ops: 5000, payload: 91277, bytes: 1385895, sync_ms: 11229.632581, converged: true, lost: 0, leaked: false }
+A seed=5 Outcome { ops: 5000, payload: 91252, bytes: 1385733, sync_ms: 4052.206067, converged: true, lost: 0, leaked: false }
+A seed=6 Outcome { ops: 5000, payload: 91305, bytes: 1386019, sync_ms: 3984.027595, converged: true, lost: 0, leaked: false }
+A seed=7 Outcome { ops: 5000, payload: 91254, bytes: 1386175, sync_ms: 2482.5005889999998, converged: true, lost: 0, leaked: false }
+A seed=8 Outcome { ops: 5000, payload: 91298, bytes: 1386029, sync_ms: 4435.231, converged: true, lost: 0, leaked: false }
+A seed=9 Outcome { ops: 5000, payload: 91274, bytes: 1388775, sync_ms: 4436.424959, converged: true, lost: 0, leaked: false }
+A seed=10 Outcome { ops: 5000, payload: 91263, bytes: 1385889, sync_ms: 4032.686162, converged: true, lost: 0, leaked: false }
+A: p95=11230ms max_bytes/payload=15.22 clean=true -> FAIL
+B seed=1 Outcome { ops: 5000, payload: 91274, bytes: 2881998, sync_ms: 3527.631133, converged: true, lost: 0, leaked: false }
+B seed=2 Outcome { ops: 5000, payload: 91274, bytes: 2881998, sync_ms: 3358.5086309999997, converged: true, lost: 0, leaked: false }
+B seed=3 Outcome { ops: 5000, payload: 91223, bytes: 2881794, sync_ms: 1879.82202, converged: true, lost: 0, leaked: false }
+B seed=4 Outcome { ops: 5000, payload: 91277, bytes: 2882010, sync_ms: 1974.758049, converged: true, lost: 0, leaked: false }
+B seed=5 Outcome { ops: 5000, payload: 91252, bytes: 2881910, sync_ms: 1823.4684240000001, converged: true, lost: 0, leaked: false }
+B seed=6 Outcome { ops: 5000, payload: 91305, bytes: 2882122, sync_ms: 1702.118907, converged: true, lost: 0, leaked: false }
+B seed=7 Outcome { ops: 5000, payload: 91254, bytes: 2881918, sync_ms: 2510.3839620000003, converged: true, lost: 0, leaked: false }
+B seed=8 Outcome { ops: 5000, payload: 91298, bytes: 2882094, sync_ms: 1904.245434, converged: true, lost: 0, leaked: false }
+B seed=9 Outcome { ops: 5000, payload: 91274, bytes: 2881998, sync_ms: 4022.4200220000002, converged: true, lost: 0, leaked: false }
+B seed=10 Outcome { ops: 5000, payload: 91263, bytes: 2881954, sync_ms: 2865.383204, converged: true, lost: 0, leaked: false }
+B: p95=4022ms max_bytes/payload=31.59 clean=true -> FAIL
+C seed=1 Outcome { ops: 5000, payload: 91274, bytes: 2142283, sync_ms: 2233.630883, converged: true, lost: 0, leaked: false }
+C seed=2 Outcome { ops: 5000, payload: 91274, bytes: 2169636, sync_ms: 1628.341732, converged: true, lost: 0, leaked: false }
+C seed=3 Outcome { ops: 5000, payload: 91223, bytes: 2218974, sync_ms: 2667.315188, converged: true, lost: 0, leaked: false }
+C seed=4 Outcome { ops: 5000, payload: 91277, bytes: 2191861, sync_ms: 4002.3396570000004, converged: true, lost: 0, leaked: false }
+C seed=5 Outcome { ops: 5000, payload: 91252, bytes: 2203223, sync_ms: 1757.683063, converged: true, lost: 0, leaked: false }
+C seed=6 Outcome { ops: 5000, payload: 91305, bytes: 2205511, sync_ms: 2659.835964, converged: true, lost: 0, leaked: false }
+C seed=7 Outcome { ops: 5000, payload: 91254, bytes: 2133034, sync_ms: 2694.585224, converged: true, lost: 0, leaked: false }
+C seed=8 Outcome { ops: 5000, payload: 91298, bytes: 2148623, sync_ms: 2747.8985099999995, converged: true, lost: 0, leaked: false }
+C seed=9 Outcome { ops: 5000, payload: 91274, bytes: 2206128, sync_ms: 2849.8354990000003, converged: true, lost: 0, leaked: false }
+C seed=10 Outcome { ops: 5000, payload: 91263, bytes: 2137765, sync_ms: 2341.862409, converged: true, lost: 0, leaked: false }
+C: p95=4002ms max_bytes/payload=24.32 clean=true -> FAIL
+
+thread 'main' (137) panicked at spikes/dat01/examples/backlog.rs:71:5:
+S-08 threshold missed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+=== S-08 backlog (examples/backlog.rs, 10 seeds, 1000 ops per client)
+reps=10 ops_per_client=1000
+A seed=1 Outcome { ops: 5000, payload: 91274, bytes: 1385652, sync_ms: 5609.756295, converged: true, lost: 0, leaked: false }
+A seed=2 Outcome { ops: 5000, payload: 91274, bytes: 1386002, sync_ms: 5182.581948, converged: true, lost: 0, leaked: false }
+A seed=3 Outcome { ops: 5000, payload: 91223, bytes: 1385802, sync_ms: 4964.402566000001, converged: true, lost: 0, leaked: false }
+A seed=4 Outcome { ops: 5000, payload: 91277, bytes: 1385895, sync_ms: 11229.632581, converged: true, lost: 0, leaked: false }
+A seed=5 Outcome { ops: 5000, payload: 91252, bytes: 1385733, sync_ms: 4052.206067, converged: true, lost: 0, leaked: false }
+A seed=6 Outcome { ops: 5000, payload: 91305, bytes: 1386019, sync_ms: 3984.027595, converged: true, lost: 0, leaked: false }
+A seed=7 Outcome { ops: 5000, payload: 91254, bytes: 1386175, sync_ms: 2482.5005889999998, converged: true, lost: 0, leaked: false }
+A seed=8 Outcome { ops: 5000, payload: 91298, bytes: 1386029, sync_ms: 4435.231, converged: true, lost: 0, leaked: false }
+A seed=9 Outcome { ops: 5000, payload: 91274, bytes: 1388775, sync_ms: 4436.424959, converged: true, lost: 0, leaked: false }
+A seed=10 Outcome { ops: 5000, payload: 91263, bytes: 1385889, sync_ms: 4032.686162, converged: true, lost: 0, leaked: false }
+A: p95=11230ms max_bytes/payload=15.22 clean=true -> FAIL
+B seed=1 Outcome { ops: 5000, payload: 91274, bytes: 2881998, sync_ms: 3527.631133, converged: true, lost: 0, leaked: false }
+B seed=2 Outcome { ops: 5000, payload: 91274, bytes: 2881998, sync_ms: 3358.5086309999997, converged: true, lost: 0, leaked: false }
+B seed=3 Outcome { ops: 5000, payload: 91223, bytes: 2881794, sync_ms: 1879.82202, converged: true, lost: 0, leaked: false }
+B seed=4 Outcome { ops: 5000, payload: 91277, bytes: 2882010, sync_ms: 1974.758049, converged: true, lost: 0, leaked: false }
+B seed=5 Outcome { ops: 5000, payload: 91252, bytes: 2881910, sync_ms: 1823.4684240000001, converged: true, lost: 0, leaked: false }
+B seed=6 Outcome { ops: 5000, payload: 91305, bytes: 2882122, sync_ms: 1702.118907, converged: true, lost: 0, leaked: false }
+B seed=7 Outcome { ops: 5000, payload: 91254, bytes: 2881918, sync_ms: 2510.3839620000003, converged: true, lost: 0, leaked: false }
+B seed=8 Outcome { ops: 5000, payload: 91298, bytes: 2882094, sync_ms: 1904.245434, converged: true, lost: 0, leaked: false }
+B seed=9 Outcome { ops: 5000, payload: 91274, bytes: 2881998, sync_ms: 4022.4200220000002, converged: true, lost: 0, leaked: false }
+B seed=10 Outcome { ops: 5000, payload: 91263, bytes: 2881954, sync_ms: 2865.383204, converged: true, lost: 0, leaked: false }
+B: p95=4022ms max_bytes/payload=31.59 clean=true -> FAIL
+C seed=1 Outcome { ops: 5000, payload: 91274, bytes: 2142283, sync_ms: 2233.630883, converged: true, lost: 0, leaked: false }
+C seed=2 Outcome { ops: 5000, payload: 91274, bytes: 2169636, sync_ms: 1628.341732, converged: true, lost: 0, leaked: false }
+C seed=3 Outcome { ops: 5000, payload: 91223, bytes: 2218974, sync_ms: 2667.315188, converged: true, lost: 0, leaked: false }
+C seed=4 Outcome { ops: 5000, payload: 91277, bytes: 2191861, sync_ms: 4002.3396570000004, converged: true, lost: 0, leaked: false }
+C seed=5 Outcome { ops: 5000, payload: 91252, bytes: 2203223, sync_ms: 1757.683063, converged: true, lost: 0, leaked: false }
+C seed=6 Outcome { ops: 5000, payload: 91305, bytes: 2205511, sync_ms: 2659.835964, converged: true, lost: 0, leaked: false }
+C seed=7 Outcome { ops: 5000, payload: 91254, bytes: 2133034, sync_ms: 2694.585224, converged: true, lost: 0, leaked: false }
+C seed=8 Outcome { ops: 5000, payload: 91298, bytes: 2148623, sync_ms: 2747.8985099999995, converged: true, lost: 0, leaked: false }
+C seed=9 Outcome { ops: 5000, payload: 91274, bytes: 2206128, sync_ms: 2849.8354990000003, converged: true, lost: 0, leaked: false }
+C seed=10 Outcome { ops: 5000, payload: 91263, bytes: 2137765, sync_ms: 2341.862409, converged: true, lost: 0, leaked: false }
+C: p95=4002ms max_bytes/payload=24.32 clean=true -> FAIL
+
+thread 'main' (137) panicked at spikes/dat01/examples/backlog.rs:71:5:
+S-08 threshold missed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

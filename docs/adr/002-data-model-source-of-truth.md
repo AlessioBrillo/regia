@@ -32,6 +32,8 @@ None for the decision itself. Schema v0 (`regia-domain`, `Envelope`) is a logica
 independent of storage: it carries no revision, clock or merge metadata, so it does not pre-empt this ADR or ADR-003.
 Benchmark plan and synthetic dataset: [DAT-01](../experiments/DAT-01-data-model-sync.md) (planned, not executed).
 
+Increment 3 ([results](../experiments/dat-01/results-increment-3.md)): migration (S-06), long backlog (S-08) and alternative C (hybrid) measured. No gate listed in the card rejects an alternative; the frozen S-08 byte criterion is missed by all three, so it cannot choose, and its meaning is an owner decision. The Decision stays pending.
+
 ## Consequences
 
 To be filled when the decision is taken.

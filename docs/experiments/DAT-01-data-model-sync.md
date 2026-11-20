@@ -1,6 +1,6 @@
 # DAT-01 — Data model and sync benchmark
 
-Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Increment 2 in progress: clocks, a real process kill for S-07 and S-12 landed in #31; S-09 and S-10 are in [`dat-01/results-increment-2.md`](dat-01/results-increment-2.md); S-06, S-08 and alternative C are next; their rules are frozen below (increment 3, 2026-11-20). No alternative is selected. Report §4.3, §4.4, §7.3.
+Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Increment 2 in progress: clocks, a real process kill for S-07 and S-12 landed in #31; S-09 and S-10 are in [`dat-01/results-increment-2.md`](dat-01/results-increment-2.md); S-06, S-08 and alternative C ran in increment 3 ([`dat-01/results-increment-3.md`](dat-01/results-increment-3.md)); S-07 and S-12 were not run on C. No alternative is selected. Report §4.3, §4.4, §7.3.
 Feeds ADR-002 and ADR-003. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text

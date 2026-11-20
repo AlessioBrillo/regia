@@ -31,7 +31,7 @@ spikes. The first real integration must be read-only or low-risk, with test acco
 ## G1 checklist
 
 - [x] Policy engine: POL-01 executed, ADR-005 accepted as a Cedar trial (2026-11-12)
-- [ ] Storage and sync: DAT-01 executed → ADR-002, ADR-003 (then ADR-001)
+- [ ] Storage and sync: DAT-01 executed (increments 1-3, no alternative rejected) → ADR-002, ADR-003 pending the owner decision on the S-08 criterion and CL-01 (then ADR-001)
 - [ ] Key management: CRY-01 → ADR-004
 - [ ] Client strategy: CL-01 → ADR-012
 - [ ] Workflow runtime: WFE-01 → ADR-007
