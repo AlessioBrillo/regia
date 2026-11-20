@@ -17,6 +17,7 @@
 
 pub mod alt_a;
 pub mod alt_b;
+pub mod alt_c;
 pub mod backlog;
 pub mod data;
 pub mod sim;

@@ -8,7 +8,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use regia_spike_dat01::{
-    Circle, Device, Op, Quarantined, Reason, Replica, alt_a::AltA, alt_b::AltB, sim::Sim,
+    Circle, Device, Op, Quarantined, Reason, Replica, alt_a::AltA, alt_b::AltB, alt_c::AltC,
+    sim::Sim,
 };
 
 const OLD: Circle = 0;
@@ -18,6 +19,16 @@ fn create<R: Replica>(sim: &mut Sim<R>, d: Device, c: Circle, obj: &str, title: 
     let fields = BTreeMap::from([
         ("title".to_owned(), title.to_owned()),
         ("status".to_owned(), "open".to_owned()),
+        // Both sides of the hybrid: alternate by the last byte of the id.
+        (
+            "kind".to_owned(),
+            if obj.bytes().last().unwrap_or(0).is_multiple_of(2) {
+                "document"
+            } else {
+                "task"
+            }
+            .to_owned(),
+        ),
     ]);
     sim.op(
         d,
@@ -349,6 +360,7 @@ macro_rules! for_both {
     ($($f:ident),* $(,)?) => {
         mod alt_a { use super::*; $( #[test] fn $f() { super::$f::<AltA>(); } )* }
         mod alt_b { use super::*; $( #[test] fn $f() { super::$f::<AltB>(); } )* }
+        mod alt_c { use super::*; $( #[test] fn $f() { super::$f::<AltC>(); } )* }
     };
 }
 

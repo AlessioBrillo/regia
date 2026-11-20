@@ -50,7 +50,16 @@ pub fn run<R: Replica>(seed: u64, ops: usize) -> Result<Outcome, Error> {
     for c in &mut sim.clients {
         c.set_schema(crate::Schema::V1);
     }
-    let fields = |t: &str| BTreeMap::from([("title".to_owned(), t.to_owned())]);
+    // Half of the objects are documents: the hybrid stores them on its Automerge side.
+    let fields = |t: &str, doc: bool| {
+        BTreeMap::from([
+            ("title".to_owned(), t.to_owned()),
+            (
+                "kind".to_owned(),
+                if doc { "document" } else { "task" }.to_owned(),
+            ),
+        ])
+    };
     let (mut payload, mut rng) = (0, seed);
     let apply = |sim: &mut Sim<R>, d, c, op: Op, payload: &mut usize| {
         *payload += match &op {
@@ -65,7 +74,7 @@ pub fn run<R: Replica>(seed: u64, ops: usize) -> Result<Outcome, Error> {
 
     let op = Op::Create {
         obj: SHARED.into(),
-        fields: fields("shared"),
+        fields: fields("shared", false),
     };
     apply(&mut sim, 0, 0, op, &mut payload)?;
     sim.op(
@@ -73,7 +82,7 @@ pub fn run<R: Replica>(seed: u64, ops: usize) -> Result<Outcome, Error> {
         1,
         Op::Create {
             obj: "c1".into(),
-            fields: fields(CANARY),
+            fields: fields(CANARY, true),
         },
     )?;
     sim.sync_all()?;
@@ -89,7 +98,7 @@ pub fn run<R: Replica>(seed: u64, ops: usize) -> Result<Outcome, Error> {
             let obj = format!("d{d}-o{i}");
             let op = Op::Create {
                 obj: obj.clone(),
-                fields: fields(&format!("t{d}-{i}")),
+                fields: fields(&format!("t{d}-{i}"), i % 2 == 0),
             };
             apply(&mut sim, d, 0, op, &mut payload)?;
             written.insert((obj, "title".into(), d), format!("t{d}-{i}"));

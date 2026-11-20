@@ -16,6 +16,7 @@ use std::env;
 use regia_spike_dat01::{
     alt_a::AltA,
     alt_b::AltB,
+    alt_c::AltC,
     backlog::{Outcome, run},
 };
 
@@ -56,6 +57,7 @@ fn main() {
             run::<AltA> as fn(u64, usize) -> Result<Outcome, String>,
         ),
         ("B", run::<AltB>),
+        ("C", run::<AltC>),
     ] {
         let runs: Vec<Outcome> = (1..=reps)
             .map(|seed| {

@@ -2,7 +2,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use regia_spike_dat01::{Replica, alt_a::AltA, alt_b::AltB, backlog::run};
+use regia_spike_dat01::{Replica, alt_a::AltA, alt_b::AltB, alt_c::AltC, backlog::run};
 
 fn small_backlog<R: Replica>() {
     for seed in 1..=3 {
@@ -22,4 +22,9 @@ fn s08_small_backlog_a() {
 #[test]
 fn s08_small_backlog_b() {
     small_backlog::<AltB>();
+}
+
+#[test]
+fn s08_small_backlog_c() {
+    small_backlog::<AltC>();
 }
