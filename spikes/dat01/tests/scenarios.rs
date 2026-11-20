@@ -13,6 +13,7 @@ use regia_spike_dat01::{
     Circle, Conflict, Device, Notice, Op, Replica,
     alt_a::AltA,
     alt_b::AltB,
+    alt_c::AltC,
     data::{Dataset, Item},
     sim::Sim,
 };
@@ -37,6 +38,10 @@ fn fields(item: &Item) -> BTreeMap<String, String> {
     BTreeMap::from([
         ("title".to_owned(), item.title.clone()),
         ("status".to_owned(), "open".to_owned()),
+        (
+            "kind".to_owned(),
+            if item.doc { "document" } else { "task" }.to_owned(),
+        ),
     ])
 }
 
@@ -589,6 +594,11 @@ fn run<R: Replica>(acts: &[Act]) -> (Vec<bool>, Vec<regia_spike_dat01::Snapshot>
                 let f = BTreeMap::from([
                     ("title".to_owned(), format!("t{k}")),
                     ("status".to_owned(), "open".to_owned()),
+                    // Half the objects go to A's side of the hybrid.
+                    (
+                        "kind".to_owned(),
+                        if k % 2 == 0 { "document" } else { "task" }.to_owned(),
+                    ),
                 ]);
                 sim.op(
                     u32::try_from(k % 3).unwrap(),
@@ -655,13 +665,17 @@ proptest! {
 
     /// Same history on A and B: same accepted/refused ops, converged replicas, equal visible state.
     #[test]
-    fn a_and_b_agree_and_converge(acts in prop::collection::vec(act(), 1..40)) {
+    fn a_b_and_c_agree_and_converge(acts in prop::collection::vec(act(), 1..40)) {
         let (oa, sa) = run::<AltA>(&acts);
         let (ob, sb) = run::<AltB>(&acts);
+        let (oc, sc) = run::<AltC>(&acts);
         prop_assert_eq!(&oa, &ob, "accepted/refused ops differ");
         prop_assert!(sa.windows(2).all(|w| w[0] == w[1]), "A diverged");
         prop_assert!(sb.windows(2).all(|w| w[0] == w[1]), "B diverged");
         prop_assert_eq!(&sa[0], &sb[0], "A and B disagree");
+        prop_assert_eq!(&oa, &oc, "C accepted/refused differently");
+        prop_assert!(sc.windows(2).all(|w| w[0] == w[1]), "C diverged");
+        prop_assert_eq!(&sa[0], &sc[0], "A and C disagree");
     }
 }
 
@@ -725,6 +739,7 @@ macro_rules! for_both {
     ($($f:ident),* $(,)?) => {
         mod alt_a { use super::*; $( #[test] fn $f() { super::$f::<AltA>(); } )* }
         mod alt_b { use super::*; $( #[test] fn $f() { super::$f::<AltB>(); } )* }
+        mod alt_c { use super::*; $( #[test] fn $f() { super::$f::<AltC>(); } )* }
     };
 }
 

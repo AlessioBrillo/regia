@@ -20,6 +20,8 @@ pub struct Item {
     pub label: Confidentiality,
     /// Title; contains `CANARY-` exactly when the label is `restricted` or `secret`.
     pub title: String,
+    /// A document (stored in Automerge by alternative C); tasks and events are not.
+    pub doc: bool,
 }
 
 /// Dataset reduced to what sync needs.
@@ -47,9 +49,9 @@ impl Dataset {
                     circle_ix.insert(c.id, n);
                 }
                 Object::Membership(m) => raw.push((None, Some(m))),
-                Object::Task(t) => raw.push((Some((t.header, t.title.value)), None)),
-                Object::Event(e) => raw.push((Some((e.header, e.title.value)), None)),
-                Object::Document(d) => raw.push((Some((d.header, d.title.value)), None)),
+                Object::Task(t) => raw.push((Some((t.header, t.title.value, false)), None)),
+                Object::Event(e) => raw.push((Some((e.header, e.title.value, false)), None)),
+                Object::Document(d) => raw.push((Some((d.header, d.title.value, true)), None)),
                 _ => {}
             }
         }
@@ -60,7 +62,7 @@ impl Dataset {
             {
                 members.entry(m.principal).or_default().insert(c);
             }
-            if let Some((h, title)) = item
+            if let Some((h, title, doc)) = item
                 && let Some(&circle) = circle_ix.get(&h.circle)
             {
                 items.push(Item {
@@ -68,6 +70,7 @@ impl Dataset {
                     circle,
                     label: h.confidentiality,
                     title,
+                    doc,
                 });
             }
         }

@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use regia_spike_dat01::{Op, Replica, Schema, alt_a::AltA, alt_b::AltB, sim::Sim};
+use regia_spike_dat01::{Op, Replica, Schema, alt_a::AltA, alt_b::AltB, alt_c::AltC, sim::Sim};
 
 const OBJ: &str = "o1";
 
@@ -26,7 +26,16 @@ fn world<R: Replica>() -> Sim<R> {
 }
 
 fn create<R: Replica>(sim: &mut Sim<R>, d: u32, circle: usize, obj: &str, title: &str, area: bool) {
-    let mut fields = BTreeMap::from([("title".to_owned(), title.to_owned())]);
+    // Alternate sides of the hybrid by the last byte of the id.
+    let kind = if obj.bytes().last().unwrap_or(0).is_multiple_of(2) {
+        "document"
+    } else {
+        "task"
+    };
+    let mut fields = BTreeMap::from([
+        ("title".to_owned(), title.to_owned()),
+        ("kind".to_owned(), kind.to_owned()),
+    ]);
     if area {
         fields.insert("area".to_owned(), "work".to_owned());
     }
@@ -148,6 +157,7 @@ macro_rules! for_both {
     ($($f:ident),* $(,)?) => {
         mod alt_a { use super::*; $( #[test] fn $f() { super::$f::<AltA>(); } )* }
         mod alt_b { use super::*; $( #[test] fn $f() { super::$f::<AltB>(); } )* }
+        mod alt_c { use super::*; $( #[test] fn $f() { super::$f::<AltC>(); } )* }
     };
 }
 
