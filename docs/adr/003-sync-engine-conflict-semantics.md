@@ -29,6 +29,8 @@ Constraint: not every field is a natural CRDT; explicit conflicts are allowed wh
 
 Partial, increment 1 of [DAT-01](../experiments/DAT-01-data-model-sync.md): [results 2026-11-13](../experiments/dat-01/results-2026-11-13.md). Both alternatives met the spike rules (S-03 lww with visible conflict, S-05 resurrect with notice) and the isolation gate; no recommendation yet. The conflict rules were fixed by the owner for the spike only (2026-11-12) and are not ratified here. Revocation while offline (S-09), migration, backlog and alternative C are increment 2.
 
+Increment 3 (S-09/S-10 are in [increment 2](../experiments/dat-01/results-increment-2.md)) ([results](../experiments/dat-01/results-increment-3.md)): migration (S-06), long backlog (S-08) and alternative C (hybrid) measured. No gate listed in the card rejects an alternative; the frozen S-08 byte criterion is missed by all three, so it cannot choose, and its meaning is an owner decision. The Decision stays pending.
+
 ## Consequences
 
 To be filled when the decision is taken.
