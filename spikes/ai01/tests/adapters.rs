@@ -20,6 +20,14 @@ fn system_prompt_is_the_frozen_block() {
     assert!(!p.contains("```"));
 }
 
+/// The extraction must survive CRLF checkouts and must never silently return an empty prompt.
+#[test]
+fn system_prompt_extraction_handles_crlf_and_fails_loudly() {
+    let doc = "## System prompt\r\n\r\n```text\r\nhello\r\nworld\r\n```\r\n";
+    assert_eq!(llm::extract_system_prompt(doc), "hello\nworld");
+    assert!(std::panic::catch_unwind(|| llm::extract_system_prompt("no heading")).is_err());
+}
+
 #[test]
 fn user_message_follows_the_frozen_template() {
     let m = llm::user_message(&req("ciao", Confidentiality::Circle));

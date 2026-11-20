@@ -24,14 +24,24 @@ const TZ: &str = "Europe/Rome";
 static TOKENS_IN: AtomicU64 = AtomicU64::new(0);
 static TOKENS_OUT: AtomicU64 = AtomicU64::new(0);
 
-/// The system prompt: the first fenced block after the "System prompt" heading of `prompt-v1.md`.
+/// The first fenced block after the "System prompt" heading of a prompt document; line endings are normalised.
+///
+/// # Panics
+/// The heading or the fence is missing: a run with an empty prompt must never be recorded as `p1`.
 #[must_use]
-pub fn system_prompt() -> &'static str {
-    let after = PROMPT_DOC
-        .split_once("## System prompt")
-        .map_or("", |(_, a)| a);
+pub fn extract_system_prompt(doc: &str) -> String {
+    let doc = doc.replace("\r\n", "\n");
+    let after = doc.split_once("## System prompt").map_or("", |(_, a)| a);
     let body = after.split_once("```text\n").map_or("", |(_, b)| b);
-    body.split_once("\n```").map_or("", |(p, _)| p)
+    let prompt = body.split_once("\n```").map_or("", |(p, _)| p);
+    assert!(!prompt.trim().is_empty(), "system prompt block not found");
+    prompt.to_owned()
+}
+
+/// The frozen system prompt `p1`.
+#[must_use]
+pub fn system_prompt() -> String {
+    extract_system_prompt(PROMPT_DOC)
 }
 
 /// The user message, exactly as the frozen template: instant, zone, then the untrusted text.

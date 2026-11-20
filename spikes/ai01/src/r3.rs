@@ -7,6 +7,11 @@ use crate::{
     llm,
 };
 
+// Explicit, so Ollama's smaller default context cannot silently drop the start of the prompt. p1 is about 700
+// tokens and the longest golden input is short; both values are recorded in `version`.
+const NUM_CTX: u32 = 4096;
+const NUM_PREDICT: u32 = 1024;
+
 /// An Ollama model. `version` carries the model tag, the exact digest and the prompt version.
 pub struct Ollama {
     url: String,
@@ -49,25 +54,34 @@ impl Ollama {
         let agent = llm::agent();
         let url = url.trim_end_matches('/');
         let tags = get(&agent, &format!("{url}/api/tags"))?;
-        let digest = tags["models"]
+        let latest = format!("{model}:latest");
+        let found = tags["models"]
             .as_array()
             .into_iter()
             .flatten()
-            .find(|m| m["name"] == model)
-            .and_then(|m| m["digest"].as_str())
+            .find(|m| m["name"] == model || m["name"] == latest.as_str())
             .ok_or_else(|| format!("model {model} is not pulled"))?;
+        let name = found["name"].as_str().unwrap_or(model);
+        let digest = found["digest"].as_str().ok_or("model without digest")?;
         Ok(Self {
             url: url.to_owned(),
-            model: model.to_owned(),
-            version: format!("{model}@{digest}:{}", llm::PROMPT_VERSION),
+            model: name.to_owned(),
+            version: format!(
+                "{name}@{digest}:{}:ctx{NUM_CTX}:out{NUM_PREDICT}",
+                llm::PROMPT_VERSION
+            ),
             agent,
         })
     }
 
-    /// Bytes the loaded model occupies right now (`/api/ps`), for the RAM metric.
+    /// Bytes this model occupies right now (`/api/ps`), for the RAM metric.
     #[must_use]
     pub fn loaded_bytes(&self) -> Option<u64> {
-        get(&self.agent, &format!("{}/api/ps", self.url)).ok()?["models"][0]["size"].as_u64()
+        get(&self.agent, &format!("{}/api/ps", self.url)).ok()?["models"]
+            .as_array()?
+            .iter()
+            .find(|m| m["name"] == self.model.as_str())?["size"]
+            .as_u64()
     }
 }
 
@@ -86,7 +100,7 @@ impl Adapter for Ollama {
             "model": self.model,
             "stream": false,
             "format": "json",
-            "options": {"temperature": 0},
+            "options": {"temperature": 0, "num_ctx": NUM_CTX, "num_predict": NUM_PREDICT},
             "messages": llm::messages(req),
         });
         let reply: Value = self
