@@ -1,6 +1,6 @@
 # DAT-01 — Data model and sync benchmark
 
-Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Increment 2 in progress: clocks, a real process kill for S-07 and S-12 landed in #31; S-09 and S-10 are in [`dat-01/results-increment-2.md`](dat-01/results-increment-2.md); S-06, S-08 and alternative C are next. No alternative is selected. Report §4.3, §4.4, §7.3.
+Status: **increment 1 executed** (S-01..S-05, S-07, S-11 on alternatives A and B; results in [`dat-01/`](dat-01/)). Increment 2 in progress: clocks, a real process kill for S-07 and S-12 landed in #31; S-09 and S-10 are in [`dat-01/results-increment-2.md`](dat-01/results-increment-2.md); S-06, S-08 and alternative C are next; their rules are frozen below (increment 3, 2026-11-20). No alternative is selected. Report §4.3, §4.4, §7.3.
 Feeds ADR-002 and ADR-003. Owner: @AlessioBrillo ([#17](https://github.com/AlessioBrillo/regia/issues/17)).
 
 ```text
@@ -61,6 +61,22 @@ increment 2 runs, so results cannot bend them.
   carried across circles.
 - **Clocks:** the HLC merges every received stamp and is persisted across restarts; a stamp more than 60 s ahead of
   the receiver's clock is refused as skew. Default chosen by the engineer, reviewable before results.
+
+## Rules fixed for increment 3 (2026-11-20, before any result)
+
+Same status: spike constraints, frozen before S-06, S-08 and alternative C run.
+
+- **S-06, the v1 delta:** v1 is v0 plus one optional field, `area`. It lives in the spike only (not in `core/domain`)
+  and has no product semantics; it stands in for the field AI-01 increment 2 will introduce. "Mid-sync" means v0 and v1
+  replicas in the same circle, syncing in both directions.
+- **S-06, pass:** no object lost or unreadable; a v0 replica keeps and forwards `area` unchanged, flags the object
+  "update the app", and refuses to write `area`; once a v1 replica syncs again its `area` is intact. The canary scan
+  is clean.
+- **S-08, backlog:** 5 clients, each making 1000 offline operations on its circles, then all reconnect. Seeds `1..=10`.
+- **S-08, pass:** in-process convergence p95 < 5 s (a lower bound: no network, as in `examples/bench.rs`), bytes
+  transferred at most 10x the net payload of the operations, no silent loss, canary scan clean. A miss is reported as
+  a miss, not as a reason to change the threshold.
+- **Alternative C** is judged on the same scenarios and gates as A and B, with the split frozen above.
 
 Harness: [`spikes/dat01`](../../spikes/dat01). Increment 1 runs both alternatives through one trait and one
 deterministic simulator, over the synthetic dataset, with a differential property test (same history on A and B must
