@@ -17,6 +17,7 @@
 
 pub mod alt_a;
 pub mod alt_b;
+pub mod backlog;
 pub mod data;
 pub mod sim;
 
@@ -250,6 +251,52 @@ pub struct Quarantined {
     pub reason: Reason,
 }
 
+/// Field names added by schema v1 (S-06). A v0 replica does not know them.
+pub const V1_FIELDS: &[&str] = &["area"];
+
+/// Schema a replica understands (S-06). Both versions store and forward every field; v0 only
+/// hides and refuses the fields of [`V1_FIELDS`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Schema {
+    /// Knows no field of [`V1_FIELDS`].
+    #[default]
+    V0,
+    /// Knows every field.
+    V1,
+}
+
+impl Schema {
+    /// Whether a local write to `field` is allowed.
+    pub fn check_write(self, field: &str) -> Result<(), Error> {
+        if self == Self::V0 && V1_FIELDS.contains(&field) {
+            return Err(format!("field {field:?} needs a newer app: update the app"));
+        }
+        Ok(())
+    }
+
+    /// Show only what this schema understands. An object that had other fields is listed in
+    /// [`Snapshot::needs_update`]; the fields themselves stay in the store.
+    pub(crate) fn mask(self, snap: &mut Snapshot) {
+        if self == Self::V1 {
+            return;
+        }
+        for (obj, view) in &mut snap.objects {
+            let before = view.fields.len();
+            view.fields.retain(|f, _| !V1_FIELDS.contains(&f.as_str()));
+            if view.fields.len() != before {
+                snap.needs_update.insert(obj.clone());
+            }
+        }
+        for c in &snap.conflicts {
+            if V1_FIELDS.contains(&c.field.as_str()) {
+                snap.needs_update.insert(c.obj.clone());
+            }
+        }
+        snap.conflicts
+            .retain(|c| !V1_FIELDS.contains(&c.field.as_str()));
+    }
+}
+
 /// Everything a replica shows for one circle. Equal snapshots = converged.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Snapshot {
@@ -261,6 +308,8 @@ pub struct Snapshot {
     pub notices: BTreeSet<Notice>,
     /// Writes held aside for an admin (S-09, S-10).
     pub quarantine: BTreeSet<Quarantined>,
+    /// Objects holding fields this replica's [`Schema`] does not know: "update the app" (S-06).
+    pub needs_update: BTreeSet<String>,
 }
 
 /// Local search index: `(circle, object) -> title` for every non-deleted object.
@@ -273,6 +322,15 @@ pub trait Replica: Sized {
 
     /// A replica of `device` holding `circles`, and nothing else.
     fn new(device: Device, circles: &[Circle]) -> Self;
+    /// Choose the schema this replica understands (default [`Schema::V0`]).
+    fn set_schema(&mut self, schema: Schema);
+    /// A replica of `device` that understands `schema`.
+    #[must_use]
+    fn new_versioned(device: Device, circles: &[Circle], schema: Schema) -> Self {
+        let mut r = Self::new(device, circles);
+        r.set_schema(schema);
+        r
+    }
     /// Author of local writes.
     fn device(&self) -> Device;
     /// Apply a local op at simulated time `now_ms`.
