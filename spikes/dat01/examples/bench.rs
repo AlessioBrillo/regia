@@ -20,7 +20,9 @@
 use std::{collections::BTreeMap, env, time::Instant};
 
 use regia_domain::synthetic::{LARGE, Profile, SMALL};
-use regia_spike_dat01::{Op, Replica, alt_a::AltA, alt_b::AltB, data::Dataset, sim::Sim};
+use regia_spike_dat01::{
+    Op, Replica, alt_a::AltA, alt_b::AltB, alt_c::AltC, data::Dataset, sim::Sim,
+};
 
 #[derive(Debug, Default, Clone)]
 struct Run {
@@ -61,6 +63,11 @@ fn run<R: Replica>(seed: u64, profile: &Profile, n: u32) -> Run {
         let f = BTreeMap::from([
             ("title".to_owned(), item.title.clone()),
             ("status".to_owned(), "open".to_owned()),
+            // The hybrid stores documents on its Automerge side; A and B store the field as is.
+            (
+                "kind".to_owned(),
+                if item.doc { "document" } else { "task" }.to_owned(),
+            ),
         ]);
         let t = Instant::now();
         sim.op(
@@ -182,9 +189,10 @@ fn main() {
         "reps={reps} (seeds 1..={reps}) profile={only_profile:?} clients={only_n:?}; times are in-process CPU, no network"
     );
     println!(
-        "adapter LOC (non-blank, non-comment): A={} B={}",
+        "adapter LOC (non-blank, non-comment): A={} B={} C={}",
         loc(include_str!("../src/alt_a.rs")),
-        loc(include_str!("../src/alt_b.rs"))
+        loc(include_str!("../src/alt_b.rs")),
+        loc(include_str!("../src/alt_c.rs"))
     );
     println!(
         "\nRAW alt profile clients seed write_p50_us write_p95_us sync_ms resync_ms bytes messages storage_per_op rebuild_ms conflicts forced intent_pct"
@@ -199,11 +207,11 @@ fn main() {
             .filter(|n| only_n.is_none_or(|o| o == *n))
         {
             for seed in 1..=reps {
-                for alt in ["A", "B"] {
-                    let r = if alt == "A" {
-                        run::<AltA>(seed, profile, n)
-                    } else {
-                        run::<AltB>(seed, profile, n)
+                for alt in ["A", "B", "C"] {
+                    let r = match alt {
+                        "A" => run::<AltA>(seed, profile, n),
+                        "B" => run::<AltB>(seed, profile, n),
+                        _ => run::<AltC>(seed, profile, n),
                     };
                     let mut w = r.write_us.clone();
                     println!(
