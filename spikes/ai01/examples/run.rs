@@ -2,7 +2,8 @@
 //!
 //! `cargo run -p regia-spike-ai01 --release --example run -- --runtime r3:qwen2.5:3b [--reps 5] [--limit N] [--out raw.jsonl]`
 //! Runtimes: `r0`, `r3:<ollama model>` (`OLLAMA_URL`), `r4:<mistral model>` (`MISTRAL_API_KEY`). Raw lines hold the
-//! case id and the verdict, never the input text.
+//! case id, the verdict and its reason. The input text is never copied, but a reason can quote model output, so the
+//! raw log is for synthetic data only and stays out of version control unless reviewed.
 
 #![allow(
     clippy::unwrap_used,
@@ -58,8 +59,16 @@ fn pct(sorted: &[u64], p: f64) -> u64 {
 
 fn main() -> Result<(), String> {
     let spec = arg("--runtime").ok_or("--runtime r0|r3:<model>|r4:<model>")?;
-    let reps: usize = arg("--reps").map_or(5, |s| s.parse().unwrap());
-    let limit: usize = arg("--limit").map_or(usize::MAX, |s| s.parse().unwrap());
+    let num = |name: &str, default: usize| -> Result<usize, String> {
+        arg(name).map_or(Ok(default), |s| {
+            s.parse().map_err(|e| format!("{name}: {e}"))
+        })
+    };
+    let reps = num("--reps", 5)?;
+    if reps == 0 {
+        return Err("--reps must be at least 1".into());
+    }
+    let limit = num("--limit", usize::MAX)?;
     let (kind, model) = spec.split_once(':').unwrap_or((spec.as_str(), ""));
     let ollama_url =
         std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".into());
@@ -89,10 +98,12 @@ fn main() -> Result<(), String> {
             let mut req = case.request()?;
             req.cloud_consent = cloud; // owner consent for synthetic input only; the router still refuses canary
             let (res, audit) = gw.run(&req, kind);
-            let s = score(case, &res, |r| r != "r4");
+            let s = score(case, &res, |_| !cloud);
             let (tin, tout) = llm::take_tokens();
             let ms = res.as_ref().map_or(0, |r| r.latency_ms);
-            if ms > 0 {
+            // Every run where an adapter was called counts, failed and timed-out ones included; only router
+            // refusals (no call) are left out.
+            if res.is_ok() {
                 lat.push(ms);
             }
             tokens = (tokens.0 + tin, tokens.1 + tout);
@@ -184,12 +195,16 @@ fn main() -> Result<(), String> {
     );
     let _ = writeln!(
         s,
-        "latency ms p50 {}  p95 {}  tokens in/out {}/{}  peak model RAM {} MB",
+        "latency ms p50 {}  p95 {}  tokens in/out {}/{}  peak model RAM {}",
         pct(&lat, 0.5),
         pct(&lat, 0.95),
         tokens.0,
         tokens.1,
-        ram / 1_000_000
+        if probe.is_some() {
+            format!("{} MB", ram / 1_000_000)
+        } else {
+            "n/a".into()
+        }
     );
     print!("{s}");
     Ok(())
