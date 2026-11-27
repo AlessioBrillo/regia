@@ -20,6 +20,7 @@ pub mod provenance;
 pub mod synthetic;
 pub mod view;
 pub mod visibility;
+pub mod workflow;
 
 pub use entity::{
     Area, Circle, DateRole, DatedValue, Document, Event, Membership, Person, Role, Source,
@@ -35,3 +36,8 @@ pub use provenance::{
 };
 pub use view::{ReadDecision, ReadView, Withheld};
 pub use visibility::{ServerVisibility, UnknownVisibility};
+pub use workflow::{
+    ActionProposal, ActionType, Approval, ApprovalRequirement, BlankValue, IdempotencyKey, Payload,
+    PolicyContextHash, ProposalHash, Reversibility, RiskClass, TransitionContext, TransitionError,
+    Workflow, WorkflowEvent, WorkflowState,
+};
