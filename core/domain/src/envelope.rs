@@ -180,6 +180,22 @@ impl Envelope {
         &self.object
     }
 
+    /// The mandatory header, for objects that have one.
+    ///
+    /// `Circle`, `Area`, `Membership` and `Source` are structural records without an
+    /// [`ObjectHeader`]; for them this returns `None`. A `None` is never an implied label:
+    /// callers must handle those variants explicitly.
+    #[must_use]
+    pub const fn header(&self) -> Option<&ObjectHeader> {
+        match &self.object {
+            Object::Person(p) => Some(&p.header),
+            Object::Task(t) => Some(&t.header),
+            Object::Event(e) => Some(&e.header),
+            Object::Document(d) => Some(&d.header),
+            Object::Circle(_) | Object::Area(_) | Object::Membership(_) | Object::Source(_) => None,
+        }
+    }
+
     /// Consumes the envelope, returning the object.
     #[must_use]
     pub fn into_object(self) -> Object {
