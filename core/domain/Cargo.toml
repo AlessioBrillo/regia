@@ -26,5 +26,13 @@ synthetic = []
 name = "dat01"
 required-features = ["synthetic"]
 
+[[example]]
+name = "capture"
+required-features = ["synthetic"]
+
+[[example]]
+name = "query"
+required-features = ["synthetic"]
+
 [lints]
 workspace = true

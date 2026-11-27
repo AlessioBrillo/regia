@@ -10,10 +10,10 @@
 //! `ponytail:` the PRNG is `splitmix64`, fine for fixtures and never for anything secret.
 
 use crate::{
-    Assertion, Circle, CircleId, Confidence, Confidentiality, DateRole, DatedValue, Document,
-    Envelope, Event, Fact, Locator, Membership, Object, ObjectHeader, ObjectId, Person, PersonId,
-    PrincipalId, Provenance, Role, ServerVisibility, Source, SourceId, SourceKind, SourceRef, Task,
-    TaskStatus, Timestamp, UnsourcedReason,
+    AreaId, Assertion, Circle, CircleId, Confidence, Confidentiality, DateRole, DatedValue,
+    Document, Envelope, Event, Fact, Locator, Membership, Object, ObjectHeader, ObjectId, Person,
+    PersonId, PrincipalId, Provenance, Role, ServerVisibility, Source, SourceId, SourceKind,
+    SourceRef, Task, TaskStatus, Timestamp, UnsourcedReason,
 };
 use time::OffsetDateTime;
 use uuid::{Builder, Uuid};
@@ -432,6 +432,170 @@ fn document(g: &mut Gen, circle: &CircleInfo, header: ObjectHeader, title: Strin
     })
 }
 
+// --- Local demo slice: synthetic capture -> cited query. -------------------------------
+// A demo of the domain contract, not a storage/sync decision (ADR-002/003 remain open).
+
+/// Why a synthetic capture is refused.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum CaptureError {
+    /// There is nothing to capture.
+    #[error("text to capture must not be blank")]
+    BlankText,
+    /// A canary marker must never enter a local store (AR-04).
+    #[error("canary text must not be captured")]
+    CanaryInput,
+}
+
+/// Captures synthetic text as one proposed `Task` whose header and title cite the text.
+///
+/// The `SourceId` is generated here and no `Source` envelope is emitted: the locator spans the
+/// whole captured text, so the citation resolves without a second object. The area stays unset
+/// ("not filed yet"); area assignment is AI-01 increment 2.
+///
+/// # Errors
+///
+/// [`CaptureError::BlankText`] when `text` is blank, [`CaptureError::CanaryInput`] when it
+/// contains a `CANARY-` marker.
+pub fn capture_text(text: &str, captured_at: Timestamp) -> Result<Task, CaptureError> {
+    if text.trim().is_empty() {
+        return Err(CaptureError::BlankText);
+    }
+    if text.contains("CANARY-") {
+        return Err(CaptureError::CanaryInput);
+    }
+    // `Locator::CharSpan` counts characters, not bytes: Italian text is non-ASCII.
+    let end = u32::try_from(text.chars().count()).unwrap_or(u32::MAX);
+    let source_ref = SourceRef {
+        source: SourceId::new(),
+        locator: Some(Locator::CharSpan { start: 0, end }),
+        captured_at: captured_at.0,
+    };
+    let sourced = || Provenance::Sourced {
+        first: source_ref.clone(),
+        more: vec![],
+    };
+    Ok(Task {
+        header: ObjectHeader {
+            id: ObjectId::new(),
+            circle: CircleId::new(),
+            confidentiality: Confidentiality::Circle,
+            server_visibility: ServerVisibility::EndToEndEncrypted,
+            area: None,
+            provenance: sourced(),
+        },
+        title: Fact {
+            value: text.to_owned(),
+            assertion: Assertion::Proposed,
+            provenance: sourced(),
+            confidence: None,
+        },
+        due: None,
+        assignees: vec![],
+        status: TaskStatus::Open,
+    })
+}
+
+/// One object found by [`search_envelopes`], with the evidence of the matching field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchMatch {
+    /// Stable id of the object as text: typed id kinds differ per object.
+    pub id: String,
+    /// Primary area, or `None` for "not filed yet".
+    pub area: Option<AreaId>,
+    /// Text of the matching field.
+    pub text: String,
+    /// Sources cited by the matching field, in order.
+    pub sources: Vec<SourceRef>,
+    /// Explicit reason when the field has no source.
+    pub unsourced: Option<String>,
+}
+
+/// Outcome of scanning a JSONL demo store.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchReport {
+    /// Matches in file order.
+    pub matches: Vec<SearchMatch>,
+    /// Lines that were not valid envelopes: refused and counted, never skipped silently.
+    pub refused: usize,
+}
+
+/// Scans envelopes in order, case-insensitively, with evidence for every match.
+///
+/// `None` entries are lines that could not be parsed: they are counted in
+/// [`SearchReport::refused`], never silently dropped. Parsing stays in the example because
+/// `serde_json` is a dev-dependency of this crate. This is a linear scan, not an index, and
+/// decides nothing about ADR-011.
+#[must_use]
+pub fn search_envelopes<'a, I>(envelopes: I, needle: &str) -> SearchReport
+where
+    I: IntoIterator<Item = Option<&'a Envelope>>,
+{
+    let needle = needle.to_lowercase();
+    let mut matches = Vec::new();
+    let mut refused = 0;
+    for envelope in envelopes {
+        let Some(envelope) = envelope else {
+            refused += 1;
+            continue;
+        };
+        if let Some(found) = describe(envelope, &needle) {
+            matches.push(found);
+        }
+    }
+    SearchReport { matches, refused }
+}
+
+fn describe(envelope: &Envelope, needle: &str) -> Option<SearchMatch> {
+    let (id, area, text, evidence) = match envelope.object() {
+        Object::Task(t) => (
+            t.header.id.to_string(),
+            t.header.area.as_ref().map(|area| area.value),
+            t.title.value.as_str(),
+            Some(&t.title.provenance),
+        ),
+        Object::Event(e) => (
+            e.header.id.to_string(),
+            e.header.area.as_ref().map(|area| area.value),
+            e.title.value.as_str(),
+            Some(&e.title.provenance),
+        ),
+        Object::Document(d) => (
+            d.header.id.to_string(),
+            d.header.area.as_ref().map(|area| area.value),
+            d.title.value.as_str(),
+            Some(&d.title.provenance),
+        ),
+        Object::Person(p) => (
+            p.header.id.to_string(),
+            p.header.area.as_ref().map(|area| area.value),
+            p.display_name.value.as_str(),
+            Some(&p.display_name.provenance),
+        ),
+        Object::Circle(c) => (c.id.to_string(), None, c.name.as_str(), None),
+        Object::Area(a) => (a.id.to_string(), None, a.name.as_str(), None),
+        Object::Membership(_) | Object::Source(_) => return None,
+    };
+    if !text.to_lowercase().contains(needle) {
+        return None;
+    }
+    let (sources, unsourced) = match evidence {
+        Some(Provenance::Sourced { first, more }) => {
+            let mut all = vec![first.clone()];
+            all.extend(more.iter().cloned());
+            (all, None)
+        }
+        Some(Provenance::Unsourced { reason }) => (vec![], Some(reason.as_str().to_owned())),
+        None => (vec![], None),
+    };
+    Some(SearchMatch {
+        id,
+        area,
+        text: text.to_owned(),
+        sources,
+        unsourced,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, HashSet};
@@ -669,5 +833,119 @@ mod tests {
             }
             assert!(canaries > 0);
         }
+    }
+
+    #[test]
+    fn capture_yields_a_proposed_task_with_a_citation_and_no_area() {
+        let text = "Synthetic: call Anna tomorrow";
+        let at = Timestamp(OffsetDateTime::from_unix_timestamp(BASE_SECS).unwrap());
+        let task = capture_text(text, at).unwrap();
+        let envelope = Envelope::new(Object::Task(task.clone())).unwrap();
+
+        assert_eq!(task.title.assertion, Assertion::Proposed);
+        assert_eq!(task.title.value, text);
+        assert!(task.header.area.is_none());
+        assert_eq!(task.header.provenance.sources().count(), 1);
+        let refs: Vec<_> = task.title.provenance.sources().collect();
+        assert_eq!(refs.len(), 1);
+        assert_eq!(
+            refs[0].locator,
+            Some(Locator::CharSpan {
+                start: 0,
+                end: u32::try_from(text.chars().count()).unwrap()
+            })
+        );
+        assert_eq!(refs[0].captured_at, at.0);
+        assert_eq!(task.status, TaskStatus::Open);
+        assert!(task.due.is_none());
+        assert!(task.assignees.is_empty());
+        assert_eq!(
+            serde_json::from_str::<Envelope>(&serde_json::to_string(&envelope).unwrap()).unwrap(),
+            envelope
+        );
+    }
+
+    #[test]
+    fn capture_refuses_blank_and_canary_text() {
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        assert_eq!(capture_text("  \n ", at), Err(CaptureError::BlankText));
+        assert_eq!(
+            capture_text("CANARY-1-2", at),
+            Err(CaptureError::CanaryInput)
+        );
+    }
+
+    #[test]
+    fn capture_locator_counts_characters_not_bytes() {
+        let text = "Synthetic: perché è qui";
+        let task = capture_text(text, Timestamp(OffsetDateTime::UNIX_EPOCH)).unwrap();
+        let refs: Vec<_> = task.title.provenance.sources().collect();
+        assert_eq!(
+            refs[0].locator,
+            Some(Locator::CharSpan {
+                start: 0,
+                end: u32::try_from(text.chars().count()).unwrap()
+            })
+        );
+        assert!(text.len() > text.chars().count());
+    }
+
+    #[test]
+    fn search_reports_matches_with_citations_and_counts_refused_lines() {
+        let at = Timestamp(OffsetDateTime::from_unix_timestamp(BASE_SECS).unwrap());
+        let task = capture_text("Synthetic: call Anna tomorrow", at).unwrap();
+        let id = task.header.id.to_string();
+        let one = Envelope::new(Object::Task(task)).unwrap();
+        let two = Envelope::new(Object::Task(
+            capture_text("Synthetic: buy milk", at).unwrap(),
+        ))
+        .unwrap();
+        let inputs = [Some(&one), None, Some(&two)];
+
+        let report = search_envelopes(inputs, "ANNA");
+        assert_eq!(report.refused, 1);
+        assert_eq!(report.matches.len(), 1);
+        assert_eq!(report.matches[0].id, id);
+        assert!(report.matches[0].area.is_none());
+        assert_eq!(report.matches[0].sources.len(), 1);
+        assert!(report.matches[0].sources[0].locator.is_some());
+        assert!(report.matches[0].unsourced.is_none());
+        assert!(search_envelopes(inputs, "missing").matches.is_empty());
+    }
+
+    #[test]
+    fn search_reports_the_reason_for_an_unsourced_field() {
+        let reason = UnsourcedReason::new("typed by user").unwrap();
+        let task = Task {
+            header: ObjectHeader {
+                id: ObjectId::new(),
+                circle: CircleId::new(),
+                confidentiality: Confidentiality::Circle,
+                server_visibility: ServerVisibility::EndToEndEncrypted,
+                area: None,
+                provenance: Provenance::Unsourced {
+                    reason: reason.clone(),
+                },
+            },
+            title: Fact {
+                value: "Synthetic typed note".to_owned(),
+                assertion: Assertion::Confirmed,
+                provenance: Provenance::Unsourced { reason },
+                confidence: None,
+            },
+            due: None,
+            assignees: vec![],
+            status: TaskStatus::Open,
+        };
+        let envelope = Envelope::new(Object::Task(task)).unwrap();
+
+        let report = search_envelopes([Some(&envelope)], "typed");
+        assert_eq!(report.refused, 0);
+        assert_eq!(report.matches.len(), 1);
+        assert!(report.matches[0].sources.is_empty());
+        assert_eq!(
+            report.matches[0].unsourced.as_deref(),
+            Some("typed by user")
+        );
     }
 }
