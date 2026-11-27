@@ -1,11 +1,13 @@
 # AI-01 — AI gateway, task router and runtime evaluation
 
-Status: **plan, not executed.** Increment 1 rules and golden set frozen 2026-11-15 in
-[`ai-01/`](ai-01/rules-increment-1.md). Report §4.8, §4.10, §8.3. Feeds ADR-008 and ADR-009. Owner: @AlessioBrillo
+Status: **increment 1 R0 executed 2026-11-27; R3/R4 not executed.** Increment 1 rules and golden set frozen
+2026-11-15 in [`ai-01/`](ai-01/rules-increment-1.md); R0 results in
+[`ai-01/results-increment-1-r0-2026-11-27.md`](ai-01/results-increment-1-r0-2026-11-27.md). Report §4.8, §4.10,
+§8.3. Feeds ADR-008 and ADR-009. Owner: @AlessioBrillo
 ([#24](https://github.com/AlessioBrillo/regia/issues/24)).
 
 ```text
-ID / version / owner:            AI-01 / v1 (plan) / @AlessioBrillo
+ID / version / owner:            AI-01 / v1 (increment 1 R0 executed) / @AlessioBrillo
 Technical question:              Can a versioned TaskRequest/TaskResult contract route each task family to a
                                  replaceable runtime without ever changing data treatment silently, and which
                                  runtime is good enough per family on the owner's real devices?
@@ -26,10 +28,10 @@ Reproducible setup:              Runtime + exact model/version, OS, device, quan
                                  versions recorded per run; fixtures and golden sets in the repo
 Method and test inputs:          Contract tests per adapter; routing negative tests; golden sets per family
 Metrics collected and units:     See "Metrics"
-Raw results and repetitions:     Not executed. Minimum 5 repetitions per case (non-determinism), raw logs kept
-Failed cases / limits:           Not executed
-Effect on requirements:          Not executed
-Decision: adopt/trial/defer/reject:  Not executed
+Raw results and repetitions:     R0: 124 cases x 5 reps, RAW local (results file above); R3/R4 not executed
+Failed cases / limits:           R0: 7 cases fail safely, 0 dangerous; see the results file
+Effect on requirements:          R0 floor measured (117/124); no requirement verified end-to-end yet
+Decision: adopt/trial/defer/reject:  Not executed (R0 is the floor, not an adoption choice)
 Linked ADR:                      ADR-008, ADR-009
 Conditions that would reopen:    A routing path that sends `secret` data off device; a provider terms/retention
                                  change; a runtime or model version that regresses a golden set; a new task family

@@ -1,12 +1,13 @@
-//! The metadata every domain object must carry. All fields are mandatory: there is no
-//! `Default`, so a label, a server-visibility declaration and provenance can never be implied.
+//! The metadata every domain object must carry. All fields are mandatory except `area`:
+//! there is no `Default`, so a label, a server-visibility declaration and provenance can never
+//! be implied. `area` is optional because "not filed yet" is a real state, not an implied area.
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    id::{CircleId, ObjectId},
+    id::{AreaId, CircleId, ObjectId},
     label::Confidentiality,
-    provenance::Provenance,
+    provenance::{Fact, Provenance},
     visibility::ServerVisibility,
 };
 
@@ -22,6 +23,13 @@ pub struct ObjectHeader {
     pub confidentiality: Confidentiality,
     /// What the server side may see.
     pub server_visibility: ServerVisibility,
+    /// The primary area where this object is filed, when one has been assigned.
+    ///
+    /// Absence means "not filed yet", never "filed into a default area". A model proposal
+    /// carries an explicit source; a person may confirm an area they chose themselves with
+    /// an unsourced reason. The envelope enforces that rule (AR-06).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<Fact<AreaId>>,
     /// Where the object came from.
     pub provenance: Provenance,
 }
@@ -37,6 +45,7 @@ mod tests {
             circle: CircleId::new(),
             confidentiality: Confidentiality::Circle,
             server_visibility: ServerVisibility::EndToEndEncrypted,
+            area: None,
             provenance: Provenance::Unsourced {
                 reason: UnsourcedReason::new("typed by user").unwrap(),
             },

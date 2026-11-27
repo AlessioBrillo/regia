@@ -1,0 +1,38 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "task",
+    "header": {
+      "id": "01900000-0000-7000-8000-000000000046",
+      "circle": "01900000-0000-7000-8000-000000000010",
+      "confidentiality": "circle",
+      "server_visibility": "end_to_end_encrypted",
+      "area": {
+        "value": "01900000-0000-7000-8000-000000000041",
+        "assertion": "proposed",
+        "provenance": {
+          "unsourced": {
+            "reason": "model guessed"
+          }
+        }
+      },
+      "provenance": {
+        "unsourced": {
+          "reason": "typed by user"
+        }
+      }
+    },
+    "title": {
+      "value": "Synthetic: unsourced area proposal",
+      "assertion": "confirmed",
+      "provenance": {
+        "unsourced": {
+          "reason": "typed by user"
+        }
+      }
+    },
+    "due": null,
+    "assignees": [],
+    "status": "open"
+  }
+}

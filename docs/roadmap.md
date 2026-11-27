@@ -35,7 +35,7 @@ spikes. The first real integration must be read-only or low-risk, with test acco
 - [ ] Key management: CRY-01 → ADR-004
 - [ ] Client strategy: CL-01 → ADR-012
 - [ ] Workflow runtime: WFE-01 → ADR-007
-- [ ] AI gateway and runtimes: AI-01 → ADR-008, ADR-009
+- [ ] AI gateway and runtimes: AI-01 (R0 executed 2026-11-27, R3/R4 pending) → ADR-008, ADR-009
 - [ ] Backend shape: ADR-006, after DAT-01, POL-01 and WFE-01
 
 ## Owner answers to report §14.3 (2026-11-08)

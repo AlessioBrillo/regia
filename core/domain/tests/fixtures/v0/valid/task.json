@@ -7,6 +7,15 @@
       "circle": "01900000-0000-7000-8000-000000000010",
       "confidentiality": "circle",
       "server_visibility": "end_to_end_encrypted",
+      "area": {
+        "value": "01900000-0000-7000-8000-000000000041",
+        "assertion": "confirmed",
+        "provenance": {
+          "unsourced": {
+            "reason": "selected by user"
+          }
+        }
+      },
       "provenance": {
         "unsourced": {
           "reason": "typed by user"

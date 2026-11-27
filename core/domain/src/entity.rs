@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use crate::{
-    id::{CircleId, PersonId, PrincipalId, SourceId},
+    id::{AreaId, CircleId, PersonId, PrincipalId, SourceId},
     label::Confidentiality,
     object::ObjectHeader,
     provenance::Fact,
@@ -32,6 +32,23 @@ pub struct Circle {
     pub name: String,
     /// Enclosing circle, if any.
     pub parent: Option<CircleId>,
+}
+
+/// An area: *where* an object is filed (work, home, a project…). It is **not** a circle:
+/// a circle says *who can see* an object, an area says *where it belongs* (owner decision
+/// 2026-11-19). Areas are user-defined, may nest via `parent`, and have no built-in starter
+/// set in this crate. One primary area per object is proposed by the model with evidence and
+/// confirmed by the user; that assignment lives in
+/// [`ObjectHeader::area`](crate::object::ObjectHeader::area).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Area {
+    /// Stable identity.
+    pub id: AreaId,
+    /// Human-readable name (non-blank, checked by the envelope).
+    pub name: String,
+    /// Enclosing area, if any.
+    pub parent: Option<AreaId>,
 }
 
 /// Role inside a circle. Names are provisional until ADR-005 fixes the taxonomy.

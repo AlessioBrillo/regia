@@ -1,0 +1,46 @@
+{
+  "schema_version": 0,
+  "object": {
+    "type": "task",
+    "header": {
+      "id": "01900000-0000-7000-8000-000000000043",
+      "circle": "01900000-0000-7000-8000-000000000010",
+      "confidentiality": "circle",
+      "server_visibility": "end_to_end_encrypted",
+      "area": {
+        "value": "01900000-0000-7000-8000-000000000041",
+        "assertion": "proposed",
+        "provenance": {
+          "sourced": {
+            "first": {
+              "source": "01900000-0000-7000-8000-000000000030",
+              "locator": {
+                "page": 1
+              },
+              "captured_at": "2026-11-07T10:00:00Z"
+            },
+            "more": []
+          }
+        },
+        "confidence": 760
+      },
+      "provenance": {
+        "unsourced": {
+          "reason": "typed by user"
+        }
+      }
+    },
+    "title": {
+      "value": "Synthetic: file into work",
+      "assertion": "confirmed",
+      "provenance": {
+        "unsourced": {
+          "reason": "typed by user"
+        }
+      }
+    },
+    "due": null,
+    "assignees": [],
+    "status": "open"
+  }
+}
