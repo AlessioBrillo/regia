@@ -134,6 +134,7 @@ fn rewrite_store(
     lines: &[String],
     replacements: &HashMap<usize, String>,
 ) -> Result<(), String> {
+    // Untouched lines keep their original bytes and terminators (CRLF included).
     let updated = lines
         .iter()
         .enumerate()
@@ -143,11 +144,19 @@ fn rewrite_store(
                 .cloned()
                 .unwrap_or_else(|| line.clone())
         })
-        .collect::<Vec<_>>()
-        .join("\n");
-    let temp = PathBuf::from(format!("{}.tmp", store.display()));
-    fs::write(&temp, format!("{updated}\n"))
+        .collect::<String>();
+    let temp = PathBuf::from(format!("{}.{}.tmp", store.display(), std::process::id()));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&temp)
         .map_err(|e| format!("cannot write {}: {e}", temp.display()))?;
+    file.write_all(updated.as_bytes())
+        .map_err(|e| format!("cannot write {}: {e}", temp.display()))?;
+    file.sync_all()
+        .map_err(|e| format!("cannot sync {}: {e}", temp.display()))?;
+    drop(file);
     fs::rename(&temp, store).map_err(|e| {
         let _ = fs::remove_file(&temp);
         format!("cannot replace {}: {e}", store.display())
@@ -225,7 +234,10 @@ fn main() -> ExitCode {
         }
     };
     let lines = match fs::read_to_string(&args.store) {
-        Ok(s) => s.lines().map(str::to_owned).collect::<Vec<_>>(),
+        Ok(s) => s
+            .split_inclusive('\n')
+            .map(str::to_owned)
+            .collect::<Vec<_>>(),
         Err(e) => {
             eprintln!("review: cannot read {}: {e}", args.store.display());
             return ExitCode::FAILURE;
@@ -250,14 +262,25 @@ fn main() -> ExitCode {
             LineOutcome::NotApplicable => {}
             LineOutcome::NoProposal => no_proposal += 1,
             LineOutcome::Skipped => skipped += 1,
-            LineOutcome::Confirmed(line) => {
-                replacements.insert(index, line);
+            LineOutcome::Confirmed(new_line) => {
+                // Keep the terminator of the line being replaced.
+                let ending = if line.ends_with("\r\n") {
+                    "\r\n"
+                } else if line.ends_with('\n') {
+                    "\n"
+                } else {
+                    ""
+                };
+                replacements.insert(index, format!("{new_line}{ending}"));
                 confirmed += 1;
             }
         }
     }
 
-    if let Err(e) = rewrite_store(&args.store, &lines, &replacements) {
+    // Never touch the store when nothing was confirmed: an empty store must stay empty.
+    if !replacements.is_empty()
+        && let Err(e) = rewrite_store(&args.store, &lines, &replacements)
+    {
         eprintln!("review: {e}");
         return ExitCode::FAILURE;
     }

@@ -5,6 +5,10 @@
 //! policy engine (ADR-005), does not make authorisation decisions from model output and does
 //! not decide anything about search or indexes (ADR-011). An error is always a withholding,
 //! never an implicit allow.
+//!
+//! The demo's view holds one circle. Even `Public` objects in other circles are withheld:
+//! fail-closed is deliberate here and does not change the label taxonomy (`Public` can still
+//! be shared deliberately by a view that holds the right scope).
 
 use std::collections::HashSet;
 
