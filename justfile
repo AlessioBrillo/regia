@@ -29,7 +29,11 @@ docs:
     npx --yes markdownlint-cli2@0.24.0 "**/*.md" "#docs/vision" "#target" "#node_modules"
     typos
 
-# Demo end-to-end su dati sintetici: cattura e query citata. Non è un prodotto e non ratifica ADR.
+# Cerchio sintetico usato sia in cattura sia in query: nessun dato reale, nessuna decisione su policy.
+DEMO_CIRCLE := "01a21ee0-d408-7000-8000-000000000001"
+
+# Demo end-to-end su dati sintetici: cattura e query citata con vista ristretta al cerchio.
+# Non è un prodotto e non ratifica ADR.
 demo:
-    cargo run -p regia-domain --features synthetic --example capture -- --text "Synthetic: call Anna tomorrow" --store target/demo-store.jsonl
-    cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --q "anna"
+    cargo run -p regia-domain --features synthetic --example capture -- --text "Synthetic: call Anna tomorrow" --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}}
+    cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}} --q "anna"
