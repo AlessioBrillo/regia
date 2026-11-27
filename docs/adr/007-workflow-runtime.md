@@ -26,7 +26,10 @@ Constraint: idempotency of external effects is required with either choice.
 
 ## Evidence
 
-None yet. Experiment plan: [WFE-01](../experiments/WFE-01-workflow-runtime.md) (planned, not executed).
+None yet. The `WF-03` state machine fixed by report §5.3 is implemented as a reference specification in
+[`core/domain/src/workflow.rs`](../../core/domain/src/workflow.rs), with domain-level tests for cases W-02, W-05 and W-06.
+This records no choice between alternatives A and B; experiment plan:
+[WFE-01](../experiments/WFE-01-workflow-runtime.md) (planned, not executed).
 
 ## Consequences
 
