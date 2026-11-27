@@ -457,6 +457,21 @@ pub enum CaptureError {
 /// [`CaptureError::BlankText`] when `text` is blank, [`CaptureError::CanaryInput`] when it
 /// contains a `CANARY-` marker.
 pub fn capture_text(text: &str, captured_at: Timestamp) -> Result<Task, CaptureError> {
+    capture_text_in_circle(text, CircleId::new(), captured_at)
+}
+
+/// Captures text into a chosen circle. Keeps [`capture_text`] deterministic for DAT-01 while
+/// letting the demo capture into a circle the query can be scoped to.
+///
+/// # Errors
+///
+/// [`CaptureError::BlankText`] when `text` is blank, [`CaptureError::CanaryInput`] when it
+/// contains a `CANARY-` marker.
+pub fn capture_text_in_circle(
+    text: &str,
+    circle: CircleId,
+    captured_at: Timestamp,
+) -> Result<Task, CaptureError> {
     if text.trim().is_empty() {
         return Err(CaptureError::BlankText);
     }
@@ -477,7 +492,7 @@ pub fn capture_text(text: &str, captured_at: Timestamp) -> Result<Task, CaptureE
     Ok(Task {
         header: ObjectHeader {
             id: ObjectId::new(),
-            circle: CircleId::new(),
+            circle,
             confidentiality: Confidentiality::Circle,
             server_visibility: ServerVisibility::EndToEndEncrypted,
             area: None,
@@ -863,6 +878,16 @@ mod tests {
             serde_json::from_str::<Envelope>(&serde_json::to_string(&envelope).unwrap()).unwrap(),
             envelope
         );
+    }
+
+    #[test]
+    fn capture_into_a_chosen_circle_keeps_the_citation() {
+        let circle = CircleId::new();
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text_in_circle("Synthetic: call Anna", circle, at).unwrap();
+        assert_eq!(task.header.circle, circle);
+        assert_eq!(task.title.provenance.sources().count(), 1);
+        assert!(task.header.area.is_none());
     }
 
     #[test]

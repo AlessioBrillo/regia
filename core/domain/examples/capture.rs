@@ -11,27 +11,41 @@ use std::{
     process::ExitCode,
 };
 
-use regia_domain::{Envelope, Object, Timestamp, synthetic::capture_text};
+use regia_domain::{CircleId, Envelope, Object, Timestamp, synthetic::capture_text_in_circle};
 use time::OffsetDateTime;
 
 struct Args {
     text: Option<String>,
     store: PathBuf,
+    circle: Option<CircleId>,
 }
 
 fn parse_args() -> Result<Args, String> {
     let mut text = None;
     let mut store = None;
+    let mut circle = None;
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--text" => text = Some(args.next().ok_or("--text needs a value")?),
             "--store" => store = Some(PathBuf::from(args.next().ok_or("--store needs a value")?)),
+            "--circle" => {
+                let value = args.next().ok_or("--circle needs a value")?;
+                circle = Some(
+                    value
+                        .parse::<CircleId>()
+                        .map_err(|e| format!("--circle: {e}"))?,
+                );
+            }
             other => return Err(format!("unknown argument: {other}")),
         }
     }
     let store = store.ok_or("--store is required")?;
-    Ok(Args { text, store })
+    Ok(Args {
+        text,
+        store,
+        circle,
+    })
 }
 
 fn main() -> ExitCode {
@@ -39,12 +53,18 @@ fn main() -> ExitCode {
         Ok(a) => a,
         Err(e) => {
             eprintln!("capture: {e}");
-            eprintln!("usage: capture --store <file.jsonl> [--text <text>] (stdin if no --text)");
+            eprintln!(
+                "usage: capture --store <file.jsonl> [--circle <uuid-v7>] [--text <text>] (stdin if no --text)"
+            );
             return ExitCode::from(2);
         }
     };
 
-    let Args { text: given, store } = args;
+    let Args {
+        text: given,
+        store,
+        circle,
+    } = args;
     let text = if let Some(t) = given {
         t
     } else {
@@ -57,7 +77,8 @@ fn main() -> ExitCode {
     };
     let text = text.trim_end_matches(['\r', '\n']);
 
-    let task = match capture_text(text, Timestamp(OffsetDateTime::now_utc())) {
+    let circle = circle.unwrap_or_else(CircleId::new);
+    let task = match capture_text_in_circle(text, circle, Timestamp(OffsetDateTime::now_utc())) {
         Ok(t) => t,
         Err(e) => {
             eprintln!("capture: refused: {e}");
@@ -90,6 +111,6 @@ fn main() -> ExitCode {
         eprintln!("capture: cannot append: {e}");
         return ExitCode::FAILURE;
     }
-    println!("captured {id} -> {}", store.display());
+    println!("captured {id} in circle {circle} -> {}", store.display());
     ExitCode::SUCCESS
 }
