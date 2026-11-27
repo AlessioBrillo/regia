@@ -11,15 +11,17 @@
 ## Perché serve una persona
 
 Un agente può eseguire i comandi e produrre il RAW, ma serve una persona a decidere se la citazione stampata è
-sufficiente per capire da dove viene un fatto. È un giudizio di comprensibilità, non una decisione architetturale.
+sufficiente per capire da dove viene un fatto e se l'area proposta è quella giusta. Sono giudizi di comprensibilità,
+non decisioni architetturali.
 
 ## Obiettivo
 
-Eseguire una cattura sintetica e ritrovarla con la sua citazione, verificando che il risultato sia comprensibile e che
-nessun dato reale entri nel flusso.
+Eseguire una cattura sintetica, assegnarle un'area con conferma umana e ritrovarla con la sua citazione, verificando
+che il risultato sia comprensibile e che nessun dato reale entri nel flusso.
 
 Questa demo **non è un prodotto**: è un eseguibile del dominio con dati sintetici. Non accetta alcun ADR, non decide
-storage o sync (ADR-002/003 restano aperti), non assegna aree (AI-01 increment 2) e non riguarda policy o chiavi.
+storage o sync (ADR-002/003 restano aperti) e non riguarda policy o chiavi. La proposta di area usa regole
+deterministiche dichiarate, non un modello: AI-01 increment 2 resta aperto.
 
 ## Input e prerequisiti
 
@@ -36,8 +38,11 @@ storage o sync (ADR-002/003 restano aperti), non assegna aree (AI-01 increment 2
    `withheld` separato per etichetta e cerchio. Gli oggetti trattenuti non devono mai mostrare contenuto.
 4. Esegui `query` senza `--circle`: deve essere rifiutata (fail closed), non deve stampare alcun oggetto.
 5. Prova una cattura con testo contenente `CANARY-`: deve essere rifiutata, senza scrivere righe.
-6. Su uno store generato da `dat01`, verifica che l'output di `query` non contenga mai `CANARY-`.
-7. Conserva il RAW in locale, fuori dal repo. Non copiare input reali.
+6. Esegui `just review` (o il comando sotto): per ogni oggetto non ancora filato devono comparire l'area proposta e
+   l'evidenza. Rispondi `y` solo se l'area è corretta; `n` deve lasciare l'oggetto invariato.
+7. Esegui `just query`: l'oggetto confermato deve mostrare `area: <nome> (<id>) [confirmed]` insieme alla citazione.
+8. Su uno store generato da `dat01`, verifica che l'output di `query` non contenga mai `CANARY-`.
+9. Conserva il RAW in locale, fuori dal repo. Non copiare input reali.
 
 ## Comandi
 
@@ -53,6 +58,12 @@ cargo run -p regia-domain --features synthetic --example capture -- --text "CANA
 
 # Nessun oggetto senza --circle (fail closed):
 cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --q "anna"
+
+# Review interattiva e query con area risolta:
+just review
+just query
+cargo run -p regia-domain --features synthetic --example review -- --store target/demo-store.jsonl --areas core/domain/examples/demo-areas.json --circle 01a21ee0-d408-7000-8000-000000000001
+cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --circle 01a21ee0-d408-7000-8000-000000000001 --areas core/domain/examples/demo-areas.json --q "anna"
 ```
 
 `--store` è un file JSONL in append: eseguire la demo più volte aggiunge righe, non le sovrascrive. Il file sta sotto
@@ -64,13 +75,15 @@ cargo run -p regia-domain --features synthetic --example query -- --store target
 - Conteggio `matches`, `withheld` (per etichetta e cerchio) e `refused lines`
 - Conferma che il tentativo `CANARY-` è stato rifiutato e che nessun `CANARY-` compare in output
 - Conferma che la query senza `--circle` è rifiutata
+- RAW della review (proposta + evidenza + risposta) e conteggio `confirmed`/`skipped`
 - Eventuale output della query con un termine che non esiste: zero risultati
 
 ## Criteri di accettazione
 
 - [ ] Un oggetto catturato e ritrovato dalla query
 - [ ] Citazione con `source`, `locator` e `captured_at` presente nell'output
-- [ ] `area: not filed yet` stampato esplicitamente
+- [ ] `area: not filed yet` prima della review, poi `area: <nome> (<id>) [confirmed]`
+- [ ] Ogni assegnazione ha un'evidenza: proposta con source della cattura, conferma con reason
 - [ ] Righe malformate contate, non silenziate
 - [ ] Oggetti fuori cerchio e `restricted`/`secret` contati in `withheld`, mai stampati
 - [ ] Query senza `--circle` rifiutata; nessun `CANARY-` in output

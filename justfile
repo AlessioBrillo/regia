@@ -37,3 +37,11 @@ DEMO_CIRCLE := "01a21ee0-d408-7000-8000-000000000001"
 demo:
     cargo run -p regia-domain --features synthetic --example capture -- --text "Synthetic: call Anna tomorrow" --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}}
     cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}} --q "anna"
+
+# Review interattiva: proposta deterministica di area e conferma umana. Non è un modello e non ratifica ADR.
+review store="target/demo-store.jsonl":
+    cargo run -p regia-domain --features synthetic --example review -- --store {{store}} --areas core/domain/examples/demo-areas.json --circle {{DEMO_CIRCLE}}
+
+# Query con area risolta: da eseguire dopo `just review`.
+query:
+    cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}} --areas core/domain/examples/demo-areas.json --q "anna"
