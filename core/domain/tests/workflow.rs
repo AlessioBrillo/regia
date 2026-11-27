@@ -80,7 +80,7 @@ fn evaluate(workflow: &mut Workflow, ctx: &TransitionContext<'_>) {
 fn w02_timeout_is_unknown_and_must_be_reconciled_before_any_retry() {
     let policy = PolicyContextHash::new("policy-a").unwrap();
     let fingerprint = ProposalHash::new("proposal-a").unwrap();
-    let mut workflow = Workflow::new(ObjectId::new(), proposal(CircleId::new(), &policy));
+    let mut workflow = Workflow::new(proposal(CircleId::new(), &policy));
     let ctx = context(100, &fingerprint, &policy);
     evaluate(&mut workflow, &ctx);
 
@@ -91,15 +91,18 @@ fn w02_timeout_is_unknown_and_must_be_reconciled_before_any_retry() {
             &context(150, &fingerprint, &policy),
         )
         .unwrap();
+    let exec_ctx = context(250, &fingerprint, &policy);
     workflow
-        .transition(&WorkflowEvent::ExecutionStarted, &ctx)
+        .transition(&WorkflowEvent::ExecutionStarted, &exec_ctx)
         .unwrap();
 
-    workflow.transition(&WorkflowEvent::TimedOut, &ctx).unwrap();
+    workflow
+        .transition(&WorkflowEvent::TimedOut, &exec_ctx)
+        .unwrap();
     assert_eq!(workflow.state(), WorkflowState::OutcomeUnknown);
     assert_ne!(workflow.state(), WorkflowState::Failed);
     assert_eq!(
-        workflow.transition(&WorkflowEvent::ExecutionStarted, &ctx),
+        workflow.transition(&WorkflowEvent::ExecutionStarted, &exec_ctx),
         Err(TransitionError::InvalidTransition(
             "ExecutionStarted".to_owned(),
             WorkflowState::OutcomeUnknown
@@ -107,10 +110,10 @@ fn w02_timeout_is_unknown_and_must_be_reconciled_before_any_retry() {
     );
 
     workflow
-        .transition(&WorkflowEvent::Reconciled, &ctx)
+        .transition(&WorkflowEvent::Reconciled, &exec_ctx)
         .unwrap();
     workflow
-        .transition(&WorkflowEvent::Completed, &ctx)
+        .transition(&WorkflowEvent::Completed, &exec_ctx)
         .unwrap();
     assert_eq!(workflow.state(), WorkflowState::Completed);
 }
@@ -120,7 +123,7 @@ fn w05_changed_payload_target_or_window_invalidates_approval() {
     let policy = PolicyContextHash::new("policy-a").unwrap();
     let fingerprint = ProposalHash::new("proposal-a").unwrap();
     let changed = ProposalHash::new("proposal-b").unwrap();
-    let mut workflow = Workflow::new(ObjectId::new(), proposal(CircleId::new(), &policy));
+    let mut workflow = Workflow::new(proposal(CircleId::new(), &policy));
     let ctx = context(100, &fingerprint, &policy);
     evaluate(&mut workflow, &ctx);
     workflow
@@ -178,7 +181,7 @@ fn w06_revoked_policy_context_requires_re_evaluation_before_approval_and_executi
     let policy = PolicyContextHash::new("policy-a").unwrap();
     let revoked = PolicyContextHash::new("policy-b").unwrap();
     let fingerprint = ProposalHash::new("proposal-a").unwrap();
-    let mut workflow = Workflow::new(ObjectId::new(), proposal(CircleId::new(), &policy));
+    let mut workflow = Workflow::new(proposal(CircleId::new(), &policy));
     evaluate(&mut workflow, &context(100, &fingerprint, &policy));
 
     let approval = approval_for(&workflow, &fingerprint, 150, 500);
@@ -236,7 +239,7 @@ fn w06_revoked_policy_context_requires_re_evaluation_before_approval_and_executi
 #[test]
 fn workflow_rejects_unknown_fields_and_round_trips() {
     let policy = PolicyContextHash::new("policy-a").unwrap();
-    let workflow = Workflow::new(ObjectId::new(), proposal(CircleId::new(), &policy));
+    let workflow = Workflow::new(proposal(CircleId::new(), &policy));
     let value = serde_json::to_value(&workflow).unwrap();
     assert_eq!(
         serde_json::from_value::<Workflow>(value.clone()).unwrap(),
@@ -253,7 +256,7 @@ fn payload_and_errors_never_expose_content() {
     let policy = PolicyContextHash::new("policy-a").unwrap();
     let mut input = proposal(CircleId::new(), &policy);
     input.proposed_payload = Payload::new("CANARY-9-9 hidden payload");
-    let mut workflow = Workflow::new(ObjectId::new(), input);
+    let mut workflow = Workflow::new(input);
 
     assert!(!format!("{workflow:?}").contains("CANARY-"));
     assert!(!format!("{:?}", workflow.proposal().proposed_payload).contains("CANARY-"));
@@ -266,4 +269,155 @@ fn payload_and_errors_never_expose_content() {
         )
         .unwrap_err();
     assert!(!error.to_string().contains("CANARY-"));
+}
+
+#[test]
+fn execution_revalidates_expiry_proposal_binding_and_policy_context() {
+    let policy = PolicyContextHash::new("policy-a").unwrap();
+    let revoked = PolicyContextHash::new("policy-b").unwrap();
+    let fingerprint = ProposalHash::new("proposal-a").unwrap();
+    let changed = ProposalHash::new("proposal-b").unwrap();
+    let mut workflow = Workflow::new(proposal(CircleId::new(), &policy));
+    evaluate(&mut workflow, &context(100, &fingerprint, &policy));
+
+    let approval = approval_for(&workflow, &fingerprint, 150, 500);
+    workflow
+        .transition(
+            &WorkflowEvent::Approved { approval },
+            &context(200, &fingerprint, &policy),
+        )
+        .unwrap();
+
+    assert_eq!(
+        workflow.transition(
+            &WorkflowEvent::ExecutionStarted,
+            &context(600, &fingerprint, &policy)
+        ),
+        Err(TransitionError::ApprovalOutsideWindow)
+    );
+    assert_eq!(
+        workflow.transition(
+            &WorkflowEvent::ExecutionStarted,
+            &context(250, &changed, &policy)
+        ),
+        Err(TransitionError::StaleApproval)
+    );
+    assert_eq!(
+        workflow.transition(
+            &WorkflowEvent::ExecutionStarted,
+            &context(250, &fingerprint, &revoked)
+        ),
+        Err(TransitionError::PolicyContextChanged)
+    );
+    assert_eq!(workflow.state(), WorkflowState::Approved);
+
+    workflow
+        .transition(
+            &WorkflowEvent::ExecutionStarted,
+            &context(250, &fingerprint, &policy),
+        )
+        .unwrap();
+    assert_eq!(workflow.state(), WorkflowState::ExecutionStarted);
+}
+
+#[test]
+fn proposal_validity_window_closes_before_execution() {
+    let policy = PolicyContextHash::new("policy-a").unwrap();
+    let fingerprint = ProposalHash::new("proposal-a").unwrap();
+    let mut input = proposal(CircleId::new(), &policy);
+    input.expires_at = at(300);
+    let mut workflow = Workflow::new(input);
+    evaluate(&mut workflow, &context(100, &fingerprint, &policy));
+
+    let approval = approval_for(&workflow, &fingerprint, 150, 500);
+    workflow
+        .transition(
+            &WorkflowEvent::Approved { approval },
+            &context(200, &fingerprint, &policy),
+        )
+        .unwrap();
+    assert_eq!(
+        workflow.transition(
+            &WorkflowEvent::ExecutionStarted,
+            &context(400, &fingerprint, &policy)
+        ),
+        Err(TransitionError::ProposalExpired)
+    );
+    assert_eq!(workflow.state(), WorkflowState::Approved);
+}
+
+#[test]
+fn revoked_context_can_be_re_evaluated_and_denied() {
+    let policy = PolicyContextHash::new("policy-a").unwrap();
+    let revoked = PolicyContextHash::new("policy-b").unwrap();
+    let fingerprint = ProposalHash::new("proposal-a").unwrap();
+
+    let mut workflow = Workflow::new(proposal(CircleId::new(), &policy));
+    evaluate(&mut workflow, &context(100, &fingerprint, &policy));
+    workflow
+        .transition(
+            &WorkflowEvent::ApprovalRequired,
+            &context(100, &fingerprint, &policy),
+        )
+        .unwrap();
+    let approval = approval_for(&workflow, &fingerprint, 150, 500);
+    assert_eq!(
+        workflow.transition(
+            &WorkflowEvent::Approved { approval },
+            &context(200, &fingerprint, &revoked)
+        ),
+        Err(TransitionError::PolicyContextChanged)
+    );
+
+    let re_evaluated = context(200, &fingerprint, &revoked);
+    workflow
+        .transition(&WorkflowEvent::PolicyEvaluated, &re_evaluated)
+        .unwrap();
+    assert_eq!(workflow.state(), WorkflowState::PolicyEvaluated);
+    assert!(workflow.approval().is_none());
+    workflow
+        .transition(&WorkflowEvent::Denied, &re_evaluated)
+        .unwrap();
+    assert_eq!(workflow.state(), WorkflowState::Denied);
+
+    let mut approved_workflow = Workflow::new(proposal(CircleId::new(), &policy));
+    evaluate(&mut approved_workflow, &context(100, &fingerprint, &policy));
+    let approval = approval_for(&approved_workflow, &fingerprint, 150, 500);
+    approved_workflow
+        .transition(
+            &WorkflowEvent::Approved { approval },
+            &context(200, &fingerprint, &policy),
+        )
+        .unwrap();
+    approved_workflow
+        .transition(&WorkflowEvent::PolicyEvaluated, &re_evaluated)
+        .unwrap();
+    assert!(approved_workflow.approval().is_none());
+    approved_workflow
+        .transition(&WorkflowEvent::Denied, &re_evaluated)
+        .unwrap();
+    assert_eq!(approved_workflow.state(), WorkflowState::Denied);
+}
+
+#[test]
+fn first_evaluation_binds_the_proposal_context() {
+    let policy = PolicyContextHash::new("policy-a").unwrap();
+    let other = PolicyContextHash::new("policy-b").unwrap();
+    let fingerprint = ProposalHash::new("proposal-a").unwrap();
+    let mut workflow = Workflow::new(proposal(CircleId::new(), &policy));
+    let wrong = context(100, &fingerprint, &other);
+    workflow
+        .transition(&WorkflowEvent::ContextResolved, &wrong)
+        .unwrap();
+    workflow
+        .transition(&WorkflowEvent::PlanDrafted, &wrong)
+        .unwrap();
+    workflow
+        .transition(&WorkflowEvent::SchemaValidated, &wrong)
+        .unwrap();
+    assert_eq!(
+        workflow.transition(&WorkflowEvent::PolicyEvaluated, &wrong),
+        Err(TransitionError::PolicyContextMismatch)
+    );
+    assert_eq!(workflow.state(), WorkflowState::SchemaValidated);
 }

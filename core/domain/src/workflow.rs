@@ -90,6 +90,9 @@ opaque_string!(
 );
 
 /// Payload text, treated as opaque and never rendered in logs or diagnostics.
+///
+/// [`Self`] redacts its `Debug`. Serialization is for the proposal's own storage only: a
+/// serialised proposal must never be copied into telemetry or an audit record (AR-12).
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Payload(String);
@@ -174,6 +177,9 @@ pub struct ActionProposal {
     /// Latest instant at which an approval for this proposal is valid.
     pub expires_at: Timestamp,
     /// Declared approval requirement.
+    ///
+    /// Declarative only: reaching `approved` always requires an explicit approval event from
+    /// deterministic code, even when the proposal declares `not_required`.
     pub approval_requirement: ApprovalRequirement,
 }
 
@@ -298,6 +304,15 @@ pub enum TransitionError {
     /// Permissions, target or consent changed after policy evaluation.
     #[error("policy context changed since evaluation; re-evaluate before proceeding")]
     PolicyContextChanged,
+    /// The proposal was built for a different policy context.
+    #[error("proposal policy context does not match the evaluated context")]
+    PolicyContextMismatch,
+    /// The proposal's own validity window has closed.
+    #[error("proposal validity window has closed")]
+    ProposalExpired,
+    /// A required approval is missing; an inconsistent state is denied.
+    #[error("no approval is attached to this workflow")]
+    ApprovalMissing,
 }
 
 /// A proposal together with the state derived from it.
@@ -316,10 +331,12 @@ pub struct Workflow {
 
 impl Workflow {
     /// Starts a workflow in `requested` with no evaluation and no approval.
+    ///
+    /// The workflow identity is the proposal identity: one proposal has one lifecycle.
     #[must_use]
-    pub fn new(id: ObjectId, proposal: ActionProposal) -> Self {
+    pub fn new(proposal: ActionProposal) -> Self {
         Self {
-            id,
+            id: proposal.id,
             state: WorkflowState::Requested,
             proposal,
             policy_context_hash: None,
@@ -380,8 +397,16 @@ impl Workflow {
                 WorkflowState::SchemaValidated
             }
             (WorkflowState::SchemaValidated, WorkflowEvent::PolicyEvaluated) => {
+                if ctx.policy_context_hash != &self.proposal.policy_context_hash {
+                    return Err(TransitionError::PolicyContextMismatch);
+                }
                 WorkflowState::PolicyEvaluated
             }
+            // Re-evaluation after a permission or consent change. The approval is cleared below.
+            (
+                WorkflowState::ApprovalRequired | WorkflowState::Approved,
+                WorkflowEvent::PolicyEvaluated,
+            ) => WorkflowState::PolicyEvaluated,
             (WorkflowState::PolicyEvaluated, WorkflowEvent::Denied) => WorkflowState::Denied,
             (WorkflowState::PolicyEvaluated, WorkflowEvent::ApprovalRequired) => {
                 WorkflowState::ApprovalRequired
@@ -394,7 +419,7 @@ impl Workflow {
                 WorkflowState::Approved
             }
             (WorkflowState::Approved, WorkflowEvent::ExecutionStarted) => {
-                self.check_policy_context(ctx)?;
+                self.check_before_execution(ctx)?;
                 WorkflowState::ExecutionStarted
             }
             (WorkflowState::ExecutionStarted, WorkflowEvent::Succeeded) => WorkflowState::Succeeded,
@@ -419,6 +444,8 @@ impl Workflow {
         match event {
             WorkflowEvent::PolicyEvaluated => {
                 self.policy_context_hash = Some(ctx.policy_context_hash.clone());
+                // An approval from the previous evaluation can never authorise this one.
+                self.approval = None;
             }
             WorkflowEvent::Approved { approval } => self.approval = Some(approval.clone()),
             _ => {}
@@ -438,12 +465,43 @@ impl Workflow {
         if ctx.now < approval.at || ctx.now >= approval.expires_at {
             return Err(TransitionError::ApprovalOutsideWindow);
         }
+        self.check_proposal_window(ctx)?;
+        self.check_approval_binding(approval, ctx)?;
+        self.check_policy_context(ctx)
+    }
+
+    /// Re-checks every authorisation input immediately before execution (report §5.3).
+    fn check_before_execution(&self, ctx: &TransitionContext<'_>) -> Result<(), TransitionError> {
+        self.check_policy_context(ctx)?;
+        self.check_proposal_window(ctx)?;
+        let approval = self
+            .approval
+            .as_ref()
+            .ok_or(TransitionError::ApprovalMissing)?;
+        if ctx.now < approval.at || ctx.now >= approval.expires_at {
+            return Err(TransitionError::ApprovalOutsideWindow);
+        }
+        self.check_approval_binding(approval, ctx)
+    }
+
+    fn check_proposal_window(&self, ctx: &TransitionContext<'_>) -> Result<(), TransitionError> {
+        if ctx.now >= self.proposal.expires_at {
+            return Err(TransitionError::ProposalExpired);
+        }
+        Ok(())
+    }
+
+    fn check_approval_binding(
+        &self,
+        approval: &Approval,
+        ctx: &TransitionContext<'_>,
+    ) -> Result<(), TransitionError> {
         if approval.proposal_hash != *ctx.proposal_hash
             || approval.target_circle != self.proposal.target_circle
         {
             return Err(TransitionError::StaleApproval);
         }
-        self.check_policy_context(ctx)
+        Ok(())
     }
 
     fn check_policy_context(&self, ctx: &TransitionContext<'_>) -> Result<(), TransitionError> {

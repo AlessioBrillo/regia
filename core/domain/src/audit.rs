@@ -114,10 +114,12 @@ pub struct AuditEvent {
 
 impl AuditEvent {
     /// Records an event. There is no update method: records are append-only.
+    ///
+    /// The record identity is the action identity: one decision produces one audit event.
     #[must_use]
-    pub fn new(id: ObjectId, record: AuditRecord) -> Self {
+    pub fn new(record: AuditRecord) -> Self {
         Self {
-            id,
+            id: record.action,
             at: record.at,
             actor: record.actor,
             action: record.action,
@@ -172,7 +174,7 @@ impl AuditEvent {
 
     /// Sources considered, as references only.
     #[must_use]
-    pub const fn source_refs(&self) -> &Vec<SourceRef> {
+    pub fn source_refs(&self) -> &[SourceRef] {
         &self.source_refs
     }
 }
@@ -197,7 +199,7 @@ mod tests {
 
     #[test]
     fn record_has_no_content_fields() {
-        let event = AuditEvent::new(ObjectId::new(), record());
+        let event = AuditEvent::new(record());
         let value = serde_json::to_value(&event).unwrap();
         for content_field in ["payload", "prompt", "text", "content", "name"] {
             assert!(value.get(content_field).is_none(), "{content_field}");
@@ -207,7 +209,7 @@ mod tests {
 
     #[test]
     fn unknown_fields_with_content_are_rejected() {
-        let mut value = serde_json::to_value(AuditEvent::new(ObjectId::new(), record())).unwrap();
+        let mut value = serde_json::to_value(AuditEvent::new(record())).unwrap();
         value["payload"] = serde_json::json!("CANARY-9-9 hidden payload");
         assert!(serde_json::from_value::<AuditEvent>(value).is_err());
     }
@@ -223,7 +225,7 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let event = AuditEvent::new(ObjectId::new(), record());
+        let event = AuditEvent::new(record());
         let json = serde_json::to_string(&event).unwrap();
         assert_eq!(event, serde_json::from_str::<AuditEvent>(&json).unwrap());
     }
