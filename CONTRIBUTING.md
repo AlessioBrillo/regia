@@ -1,6 +1,6 @@
 # Contributing to Regìa
 
-Thanks for helping. Regìa is at Gate G0 (see [roadmap](docs/roadmap.md)); the most valuable contributions right now
+Thanks for helping. Regìa is at Gate G1 (see [roadmap](docs/roadmap.md)); the most valuable contributions right now
 are experiments, ADR reviews, threat-model findings and test cases.
 
 ## Ground rules
@@ -8,6 +8,16 @@ are experiments, ADR reviews, threat-model findings and test cases.
 - Be kind: see the [Code of Conduct](CODE_OF_CONDUCT.md).
 - Security issues go through [SECURITY.md](SECURITY.md), never public issues.
 - Use synthetic data only. Never attach real personal data to issues, PRs or fixtures.
+
+## Collaborator handbook
+
+A part-time maintainer joins the project for practical work that needs a person: real-device runs, manual exploratory
+tests, human evaluation of AI output and pilot documentation. Start from
+[docs/handbook/README.md](docs/handbook/README.md): onboarding index, AI → human handoff protocol, human-eval rubric
+and ready-to-run task cards. The plain-language paper lives outside the repo; if they disagree, the repo wins.
+
+Personal data stays out of scope until the G3 decision is closed; see
+[docs/handbook/g3/checklist.md](docs/handbook/g3/checklist.md).
 
 ## Workflow
 
