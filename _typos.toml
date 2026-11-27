@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["docs/vision/*", "docs/experiments/ai-01/golden/*", "spikes/ai01/src/r0.rs", "spikes/ai01/tests/golden.rs", "LICENSE", "CODE_OF_CONDUCT.md", "Cargo.lock"]
+extend-exclude = ["docs/vision/*", "docs/handbook/*", "docs/experiments/ai-01/golden/*", "spikes/ai01/src/r0.rs", "spikes/ai01/tests/golden.rs", "LICENSE", "CODE_OF_CONDUCT.md", "Cargo.lock"]

@@ -27,6 +27,7 @@ These are decided; everything else is a hypothesis to be proven by a reproducibl
 | Path | Purpose |
 |---|---|
 | [`core/domain`](core/domain) | `regia-domain`: typed IDs, confidentiality labels, server visibility, provenance |
+| [`docs/handbook`](docs/handbook) | Collaborator onboarding, handoff protocol, human-eval rubric, ready-to-run task cards |
 | [`docs/adr`](docs/adr) | Architecture Decision Records (ADR-001..012, all `proposed`) |
 | [`docs/requirements`](docs/requirements/architecture-requirements.md) | Architecture requirements AR-01..AR-15 |
 | [`docs/risk-register.md`](docs/risk-register.md) | Risks R-01..R-15 |
@@ -40,6 +41,7 @@ These are decided; everything else is a hypothesis to be proven by a reproducibl
 ci-local          # full gate (needs Docker); exit 0 = green
 cargo test --workspace
 git config core.hooksPath .githooks   # reject unsigned / non-noreply commits before push
+just --list       # helper commands; see docs/handbook/
 ```
 
 All commits must be GPG-signed and carry a `Signed-off-by` line; see [CONTRIBUTING.md](CONTRIBUTING.md).

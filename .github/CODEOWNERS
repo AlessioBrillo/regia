@@ -1,4 +1,6 @@
 * @AlessioBrillo
+# Part-time maintainer: replace with the GitHub handle when the collaborator is invited.
+# @<collaborator-handle>
 /core/ @AlessioBrillo
 /docs/adr/ @AlessioBrillo
 /.github/ @AlessioBrillo
