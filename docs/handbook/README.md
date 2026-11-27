@@ -15,7 +15,7 @@ Il ruolo è **maintainer part-time** (2-4 ore a settimana). Le decisioni archite
 - [Paper di benvenuto](paper.md): testo semplice da incollare nel Google Doc o esportare in PDF
 - [Protocollo di handoff](handoff.md): come passa il lavoro tra agente e persona, e dove finiscono i risultati
 - [Rubrica per la valutazione AI](human-eval-rubric.md): come giudicare le risposte del modello
-- [Task pronte](tasks/0000-template.md): modello e schede assegnabili
+- [Task pronte](tasks/0000-template.md): modello e schede assegnabili; [HT-06](tasks/HT-06-slice-demo.md) è la demo end-to-end su dati sintetici
 - [Checklist pilota G3](g3/checklist.md): materiale per partecipanti; la parte sui dati reali è ancora da decidere
 
 ## Regole che non si discutono
