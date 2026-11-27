@@ -27,6 +27,13 @@ Conditions that would reopen:    OS API changes affecting share/storage/on-devic
                                  supported matrix; binding cost changes materially
 ```
 
+## Hardware precondition (2026-11-26)
+
+The collaborator runs Windows 11 desktop and the Arch Linux box. Android, the iPhone and the Mac with Xcode will be
+provided by the owner; until then the device matrix below is a target, not a runnable setup.
+[`HT-02`](../handbook/tasks/HT-02-cl01-inventory.md) records the inventory and the gap. This note does not change the
+method, the scoring or ADR-012: it only states what can be executed today.
+
 ## Device matrix (owner decision, 2026-11-08, #14)
 
 The first platform is chosen **from the devices actually available**, not in the abstract (ADR-012). OS versions are
