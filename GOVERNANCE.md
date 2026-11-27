@@ -2,6 +2,15 @@
 
 Regìa is currently led by its founder (benevolent-dictator model) with a path to a maintainer group.
 
+## Current maintainers
+
+- `@AlessioBrillo` — founder, product/experiment owner, principal engineer
+- `@<collaborator-handle>` — maintainer part-time; real-device runs, manual tests, human evaluation, pilot documentation
+
+The second handle is a placeholder: insert the GitHub handle when the collaborator is invited. With a second
+maintainer, required approvals on `main` must be set to 1 with code-owner review; that is a GitHub branch-protection
+setting, not a repository file.
+
 ## Roles (report §10.1)
 
 | Area | Accountable |
