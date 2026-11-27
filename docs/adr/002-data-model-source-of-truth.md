@@ -34,6 +34,8 @@ Benchmark plan and synthetic dataset: [DAT-01](../experiments/DAT-01-data-model-
 
 Increment 3 ([results](../experiments/dat-01/results-increment-3.md)): migration (S-06), long backlog (S-08) and alternative C (hybrid) measured. No gate listed in the card rejects an alternative; the frozen S-08 byte criterion is missed by all three, so it cannot choose, and its meaning is an owner decision. The Decision stays pending.
 
+Schema v0 amendment (2026-11-27): the owner decision that an *area* is where an object is filed and a *circle* is who can see it is now a logical type (`Area { id, name, parent }`) and an optional `Fact<AreaId>` on `ObjectHeader`. A model-proposed area must carry a source; a person's confirmed choice may carry an unsourced reason. This changes the wire contract of the logical schema only (fixtures and contract suite updated); it chooses no storage, revision or merge representation, so ADR-002 stays `proposed`.
+
 ## Consequences
 
 To be filled when the decision is taken.

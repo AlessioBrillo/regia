@@ -94,6 +94,10 @@ typed_id!(
     CircleId
 );
 typed_id!(
+    /// An area: where an object is filed. Independent of circles, which decide who can see it.
+    AreaId
+);
+typed_id!(
     /// A domain object (task, event, document, ...).
     ObjectId
 );

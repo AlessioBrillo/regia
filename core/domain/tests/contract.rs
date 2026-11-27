@@ -43,6 +43,7 @@ fn valid_fixtures_roundtrip_exactly() {
     }
     // Every entity of the schema is covered by at least one valid fixture.
     let expected: BTreeSet<String> = [
+        "area",
         "circle",
         "membership",
         "person",
@@ -58,6 +59,12 @@ fn valid_fixtures_roundtrip_exactly() {
 
 /// Fixture name → text the refusal must contain. Every invalid fixture must be listed.
 const REFUSED: &[(&str, &str)] = &[
+    ("area_own_parent", "own parent"),
+    (
+        "area_proposed_without_source",
+        "proposed area needs a source",
+    ),
+    ("blank_area_name", "must not be blank"),
     ("blank_circle_name", "must not be blank"),
     ("blank_unsourced_reason", "non-blank reason"),
     ("circle_own_parent", "own parent"),

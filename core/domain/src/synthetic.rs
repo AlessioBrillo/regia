@@ -204,6 +204,7 @@ impl Gen {
             circle: circle.id,
             confidentiality: label,
             server_visibility: self.visibility(label),
+            area: None,
             provenance: self.provenance(circle),
         }
     }
