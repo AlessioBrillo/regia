@@ -34,5 +34,9 @@ required-features = ["synthetic"]
 name = "query"
 required-features = ["synthetic"]
 
+[[example]]
+name = "review"
+required-features = ["synthetic"]
+
 [lints]
 workspace = true

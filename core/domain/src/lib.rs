@@ -18,6 +18,7 @@ pub mod provenance;
 /// Deterministic synthetic datasets (DAT-01). Feature `synthetic`; never a production dependency.
 #[cfg(feature = "synthetic")]
 pub mod synthetic;
+pub mod view;
 pub mod visibility;
 
 pub use entity::{
@@ -32,4 +33,5 @@ pub use provenance::{
     Assertion, Confidence, ConfidenceOutOfRange, Fact, Locator, Provenance, SourceRef,
     UnsourcedReason,
 };
+pub use view::{ReadDecision, ReadView, Withheld};
 pub use visibility::{ServerVisibility, UnknownVisibility};

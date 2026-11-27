@@ -1,0 +1,7 @@
+{
+  "areas": [
+    { "id": "01a21ee0-d408-7000-8000-000000000010", "name": "work", "parent": null },
+    { "id": "01a21ee0-d408-7000-8000-000000000011", "name": "home", "parent": null },
+    { "id": "01a21ee0-d408-7000-8000-000000000012", "name": "notes", "parent": null }
+  ]
+}

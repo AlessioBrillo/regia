@@ -457,6 +457,21 @@ pub enum CaptureError {
 /// [`CaptureError::BlankText`] when `text` is blank, [`CaptureError::CanaryInput`] when it
 /// contains a `CANARY-` marker.
 pub fn capture_text(text: &str, captured_at: Timestamp) -> Result<Task, CaptureError> {
+    capture_text_in_circle(text, CircleId::new(), captured_at)
+}
+
+/// Captures text into a chosen circle. Keeps [`capture_text`] deterministic for DAT-01 while
+/// letting the demo capture into a circle the query can be scoped to.
+///
+/// # Errors
+///
+/// [`CaptureError::BlankText`] when `text` is blank, [`CaptureError::CanaryInput`] when it
+/// contains a `CANARY-` marker.
+pub fn capture_text_in_circle(
+    text: &str,
+    circle: CircleId,
+    captured_at: Timestamp,
+) -> Result<Task, CaptureError> {
     if text.trim().is_empty() {
         return Err(CaptureError::BlankText);
     }
@@ -477,7 +492,7 @@ pub fn capture_text(text: &str, captured_at: Timestamp) -> Result<Task, CaptureE
     Ok(Task {
         header: ObjectHeader {
             id: ObjectId::new(),
-            circle: CircleId::new(),
+            circle,
             confidentiality: Confidentiality::Circle,
             server_visibility: ServerVisibility::EndToEndEncrypted,
             area: None,
@@ -495,6 +510,62 @@ pub fn capture_text(text: &str, captured_at: Timestamp) -> Result<Task, CaptureE
     })
 }
 
+/// An area could not be assigned with the evidence the contract requires.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum AreaError {
+    /// A model-style proposal without a source is unrepresentable (AR-06).
+    #[error("a proposed area needs a source on the captured text")]
+    NoSource,
+    /// A person's own choice still needs a stated reason.
+    #[error("an area confirmation needs a non-blank reason")]
+    BlankReason,
+}
+
+/// Proposes an area for a captured task, citing the source of the captured text.
+///
+/// The area is *proposed*, never confirmed: a person must accept it explicitly. No model is
+/// involved and no AI-01 decision is ratified here.
+///
+/// # Errors
+///
+/// [`AreaError::NoSource`] when the captured text has no source to cite.
+pub fn propose_area(task: &Task, area: AreaId) -> Result<Task, AreaError> {
+    let source = task
+        .title
+        .provenance
+        .sources()
+        .next()
+        .ok_or(AreaError::NoSource)?;
+    let mut proposed = task.clone();
+    proposed.header.area = Some(Fact {
+        value: area,
+        assertion: Assertion::Proposed,
+        provenance: Provenance::Sourced {
+            first: source.clone(),
+            more: vec![],
+        },
+        confidence: None,
+    });
+    Ok(proposed)
+}
+
+/// Confirms an area chosen by a person, recording the explicit reason for having no source.
+///
+/// # Errors
+///
+/// [`AreaError::BlankReason`] when `reason` is blank.
+pub fn confirm_area(task: &Task, area: AreaId, reason: &str) -> Result<Task, AreaError> {
+    let reason = UnsourcedReason::new(reason).map_err(|_| AreaError::BlankReason)?;
+    let mut confirmed = task.clone();
+    confirmed.header.area = Some(Fact {
+        value: area,
+        assertion: Assertion::Confirmed,
+        provenance: Provenance::Unsourced { reason },
+        confidence: None,
+    });
+    Ok(confirmed)
+}
+
 /// One object found by [`search_envelopes`], with the evidence of the matching field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchMatch {
@@ -502,6 +573,8 @@ pub struct SearchMatch {
     pub id: String,
     /// Primary area, or `None` for "not filed yet".
     pub area: Option<AreaId>,
+    /// Whether the area was proposed or confirmed, when one was assigned.
+    pub area_assertion: Option<Assertion>,
     /// Text of the matching field.
     pub text: String,
     /// Sources cited by the matching field, in order.
@@ -546,33 +619,37 @@ where
 }
 
 fn describe(envelope: &Envelope, needle: &str) -> Option<SearchMatch> {
-    let (id, area, text, evidence) = match envelope.object() {
+    let (id, area, area_assertion, text, evidence) = match envelope.object() {
         Object::Task(t) => (
             t.header.id.to_string(),
             t.header.area.as_ref().map(|area| area.value),
+            t.header.area.as_ref().map(|area| area.assertion),
             t.title.value.as_str(),
             Some(&t.title.provenance),
         ),
         Object::Event(e) => (
             e.header.id.to_string(),
             e.header.area.as_ref().map(|area| area.value),
+            e.header.area.as_ref().map(|area| area.assertion),
             e.title.value.as_str(),
             Some(&e.title.provenance),
         ),
         Object::Document(d) => (
             d.header.id.to_string(),
             d.header.area.as_ref().map(|area| area.value),
+            d.header.area.as_ref().map(|area| area.assertion),
             d.title.value.as_str(),
             Some(&d.title.provenance),
         ),
         Object::Person(p) => (
             p.header.id.to_string(),
             p.header.area.as_ref().map(|area| area.value),
+            p.header.area.as_ref().map(|area| area.assertion),
             p.display_name.value.as_str(),
             Some(&p.display_name.provenance),
         ),
-        Object::Circle(c) => (c.id.to_string(), None, c.name.as_str(), None),
-        Object::Area(a) => (a.id.to_string(), None, a.name.as_str(), None),
+        Object::Circle(c) => (c.id.to_string(), None, None, c.name.as_str(), None),
+        Object::Area(a) => (a.id.to_string(), None, None, a.name.as_str(), None),
         Object::Membership(_) | Object::Source(_) => return None,
     };
     if !text.to_lowercase().contains(needle) {
@@ -590,6 +667,7 @@ fn describe(envelope: &Envelope, needle: &str) -> Option<SearchMatch> {
     Some(SearchMatch {
         id,
         area,
+        area_assertion,
         text: text.to_owned(),
         sources,
         unsourced,
@@ -862,6 +940,60 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<Envelope>(&serde_json::to_string(&envelope).unwrap()).unwrap(),
             envelope
+        );
+    }
+
+    #[test]
+    fn capture_into_a_chosen_circle_keeps_the_citation() {
+        let circle = CircleId::new();
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text_in_circle("Synthetic: call Anna", circle, at).unwrap();
+        assert_eq!(task.header.circle, circle);
+        assert_eq!(task.title.provenance.sources().count(), 1);
+        assert!(task.header.area.is_none());
+    }
+
+    #[test]
+    fn proposed_area_cites_the_capture_and_confirmation_states_the_reason() {
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text("Synthetic: call Anna", at).unwrap();
+        let area = AreaId::new();
+        let source = task.title.provenance.sources().next().unwrap().clone();
+
+        let proposed = propose_area(&task, area).unwrap();
+        let fact = proposed.header.area.as_ref().unwrap();
+        assert_eq!(fact.value, area);
+        assert_eq!(fact.assertion, Assertion::Proposed);
+        assert_eq!(fact.provenance.sources().next(), Some(&source));
+        assert!(Envelope::new(Object::Task(proposed)).is_ok());
+
+        let confirmed = confirm_area(&task, area, "chosen by user").unwrap();
+        let fact = confirmed.header.area.as_ref().unwrap();
+        assert_eq!(fact.assertion, Assertion::Confirmed);
+        assert!(matches!(fact.provenance, Provenance::Unsourced { .. }));
+        assert!(Envelope::new(Object::Task(confirmed)).is_ok());
+    }
+
+    #[test]
+    fn area_assignment_rejects_a_proposal_without_a_source_and_a_blank_reason() {
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text("Synthetic: call Anna", at).unwrap();
+        let unsourced = Task {
+            title: Fact {
+                provenance: Provenance::Unsourced {
+                    reason: UnsourcedReason::new("typed by user").unwrap(),
+                },
+                ..task.title.clone()
+            },
+            ..task.clone()
+        };
+        assert_eq!(
+            propose_area(&unsourced, AreaId::new()),
+            Err(AreaError::NoSource)
+        );
+        assert_eq!(
+            confirm_area(&task, AreaId::new(), "  "),
+            Err(AreaError::BlankReason)
         );
     }
 
