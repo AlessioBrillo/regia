@@ -9,6 +9,7 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod audit;
 pub mod entity;
 pub mod envelope;
 pub mod id;
@@ -22,6 +23,9 @@ pub mod view;
 pub mod visibility;
 pub mod workflow;
 
+pub use audit::{
+    AuditDecision, AuditEvent, AuditRecord, AuditResult, BlankPolicyVersion, PolicyVersion,
+};
 pub use entity::{
     Area, Circle, DateRole, DatedValue, Document, Event, Membership, Person, Role, Source,
     SourceKind, Task, TaskStatus, Timestamp,
