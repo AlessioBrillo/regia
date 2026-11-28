@@ -2,8 +2,10 @@
 //!
 //! Drives the WF-03 reference state machine from a captured task to a content-free audit
 //! record. It is a demo of the domain contract, not a policy engine, a workflow runtime or a
-//! storage decision: hashes and the policy decision are supplied by the caller, and no
-//! cryptographic primitive is implemented here (ADR-007 remains proposed).
+//! storage decision: the policy decision is supplied by the caller, and no cryptographic
+//! primitive is implemented here (ADR-007 remains proposed). By default the proposal and
+//! policy-context hashes are derived from the real inputs with the demo-only helpers in
+//! [`regia_domain::fingerprint`]; explicit overrides exist to reproduce negative cases.
 
 use std::{
     env,
@@ -18,7 +20,7 @@ use regia_domain::{
     Approval, AuditDecision, AuditEvent, AuditRecord, AuditResult, CircleId, Envelope, Object,
     ObjectId, PolicyContextHash, PolicyVersion, PrincipalId, ProposalHash, ReadDecision, ReadView,
     Reversibility, RiskClass, SourceRef, Task, Timestamp, TransitionContext, Withheld, Workflow,
-    WorkflowEvent, WorkflowState,
+    WorkflowEvent, WorkflowState, policy_context_fingerprint, proposal_fingerprint,
     synthetic::{ActionDraft, propose_action_for_task},
 };
 use time::{Duration, OffsetDateTime};
@@ -36,6 +38,15 @@ enum PolicyChoice {
     Deny,
 }
 
+impl PolicyChoice {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Allow => "allow",
+            Self::Deny => "deny",
+        }
+    }
+}
+
 struct Args {
     store: PathBuf,
     audit_store: PathBuf,
@@ -48,8 +59,10 @@ struct Args {
     risk_class: RiskClass,
     reversibility: Reversibility,
     policy_version: String,
-    policy_hash: String,
-    proposal_hash: String,
+    /// `None` means "derive from the real policy context"; `Some` is an explicit override.
+    policy_hash: Option<String>,
+    /// `None` means "derive from the real proposal"; `Some` is an explicit override.
+    proposal_hash: Option<String>,
     idempotency_key: String,
     action_type: String,
 }
@@ -100,8 +113,8 @@ fn parse_args() -> Result<Args, String> {
     let mut risk_class = RiskClass::Low;
     let mut reversibility = Reversibility::Cancellable;
     let mut policy_version = "demo-policy-v1".to_owned();
-    let mut policy_hash = DEFAULT_POLICY_HASH.to_owned();
-    let mut proposal_hash = DEFAULT_PROPOSAL_HASH.to_owned();
+    let mut policy_hash = None;
+    let mut proposal_hash = None;
     let mut idempotency_key = "demo-idem-v1".to_owned();
     let mut action_type = "create_task".to_owned();
 
@@ -142,8 +155,8 @@ fn parse_args() -> Result<Args, String> {
             "--risk-class" => risk_class = parse_risk_class(&value("--risk-class")?)?,
             "--reversibility" => reversibility = parse_reversibility(&value("--reversibility")?)?,
             "--policy-version" => policy_version = value("--policy-version")?,
-            "--policy-hash" => policy_hash = value("--policy-hash")?,
-            "--proposal-hash" => proposal_hash = value("--proposal-hash")?,
+            "--policy-hash" => policy_hash = Some(value("--policy-hash")?),
+            "--proposal-hash" => proposal_hash = Some(value("--proposal-hash")?),
             "--idempotency-key" => idempotency_key = value("--idempotency-key")?,
             "--action-type" => action_type = value("--action-type")?,
             other => return Err(format!("unknown argument: {other}")),
@@ -329,13 +342,27 @@ struct Prepared {
 
 fn prepare(task: &Task, args: &Args, now: Timestamp) -> Result<Prepared, String> {
     let requester = args.principal;
+    // The context hash is derived first: it is a field of the proposal, so the proposal hash
+    // must be taken from the finished value (otherwise PolicyEvaluated would refuse it).
+    let context_hash_text = match &args.policy_hash {
+        Some(value) => value.clone(),
+        None => policy_context_fingerprint(
+            args.policy.as_str(),
+            &args.policy_version,
+            args.circle,
+            requester,
+        )
+        .map_err(|e| format!("cannot derive policy context hash: {e}"))?
+        .as_str()
+        .to_owned(),
+    };
     let expires_at = Timestamp(now.0 + Duration::minutes(10));
     let proposal = propose_action_for_task(
         task,
         requester,
         ActionDraft {
             action_type: &args.action_type,
-            policy_context_hash: &args.policy_hash,
+            policy_context_hash: &context_hash_text,
             idempotency_key: &args.idempotency_key,
             risk_class: args.risk_class,
             reversibility: args.reversibility,
@@ -346,8 +373,15 @@ fn prepare(task: &Task, args: &Args, now: Timestamp) -> Result<Prepared, String>
     let action_id = proposal.id;
     let target_circle = proposal.target_circle;
     let source_refs = proposal.source_refs.clone();
-    let policy_hash = PolicyContextHash::new(&args.policy_hash).map_err(|e| e.to_string())?;
-    let proposal_hash = ProposalHash::new(&args.proposal_hash).map_err(|e| e.to_string())?;
+    let proposal_hash_text = match &args.proposal_hash {
+        Some(value) => value.clone(),
+        None => proposal_fingerprint(&proposal)
+            .map_err(|e| format!("cannot derive proposal hash: {e}"))?
+            .as_str()
+            .to_owned(),
+    };
+    let policy_hash = PolicyContextHash::new(&context_hash_text).map_err(|e| e.to_string())?;
+    let proposal_hash = ProposalHash::new(&proposal_hash_text).map_err(|e| e.to_string())?;
     let policy_version = PolicyVersion::new(&args.policy_version).map_err(|e| e.to_string())?;
     Ok(Prepared {
         workflow: Workflow::new(proposal),
@@ -429,7 +463,8 @@ fn finish(args: &Args, outcome: Outcome) -> Result<(), String> {
     );
     let _ = writeln!(output, "audit: {}", args.audit_store.display());
     if args.policy == PolicyChoice::Allow
-        && (args.policy_hash == DEFAULT_POLICY_HASH || args.proposal_hash == DEFAULT_PROPOSAL_HASH)
+        && (args.policy_hash.as_deref() == Some(DEFAULT_POLICY_HASH)
+            || args.proposal_hash.as_deref() == Some(DEFAULT_PROPOSAL_HASH))
     {
         let _ = writeln!(
             output,
