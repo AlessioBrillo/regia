@@ -25,6 +25,7 @@ use time::{Duration, OffsetDateTime};
 
 /// A declared synthetic principal: stable across runs so the audit can attribute an action.
 const DEMO_PRINCIPAL: &str = "01a21ee0-d408-7000-8000-000000000002";
+const DEMO_APPROVER: &str = "01a21ee0-d408-7000-8000-000000000003";
 const DEFAULT_POLICY_HASH: &str = "demo-policy-v1";
 const DEFAULT_PROPOSAL_HASH: &str = "demo-proposal-v1";
 
@@ -43,6 +44,7 @@ struct Args {
     needle: Option<String>,
     policy: PolicyChoice,
     principal: PrincipalId,
+    approver: PrincipalId,
     risk_class: RiskClass,
     reversibility: Reversibility,
     policy_version: String,
@@ -92,6 +94,9 @@ fn parse_args() -> Result<Args, String> {
     let mut principal = DEMO_PRINCIPAL
         .parse::<PrincipalId>()
         .map_err(|e| format!("invalid demo principal: {e}"))?;
+    let mut approver = DEMO_APPROVER
+        .parse::<PrincipalId>()
+        .map_err(|e| format!("invalid demo approver: {e}"))?;
     let mut risk_class = RiskClass::Low;
     let mut reversibility = Reversibility::Cancellable;
     let mut policy_version = "demo-policy-v1".to_owned();
@@ -128,6 +133,12 @@ fn parse_args() -> Result<Args, String> {
                     .parse::<PrincipalId>()
                     .map_err(|e| format!("--principal: {e}"))?;
             }
+            "--approver" => {
+                let raw = value("--approver")?;
+                approver = raw
+                    .parse::<PrincipalId>()
+                    .map_err(|e| format!("--approver: {e}"))?;
+            }
             "--risk-class" => risk_class = parse_risk_class(&value("--risk-class")?)?,
             "--reversibility" => reversibility = parse_reversibility(&value("--reversibility")?)?,
             "--policy-version" => policy_version = value("--policy-version")?,
@@ -140,7 +151,11 @@ fn parse_args() -> Result<Args, String> {
     }
     let store = store.ok_or("--store is required")?;
     let audit_store = audit_store.ok_or("--audit-store is required")?;
-    if store == audit_store {
+    let store_abs =
+        std::path::absolute(&store).map_err(|e| format!("invalid --store path: {e}"))?;
+    let audit_abs = std::path::absolute(&audit_store)
+        .map_err(|e| format!("invalid --audit-store path: {e}"))?;
+    if store_abs == audit_abs {
         return Err("--store and --audit-store must differ".to_owned());
     }
     // Fail closed: without a circle nothing is read from the store.
@@ -156,6 +171,7 @@ fn parse_args() -> Result<Args, String> {
         needle,
         policy,
         principal,
+        approver,
         risk_class,
         reversibility,
         policy_version,
@@ -358,6 +374,7 @@ fn append_audit(path: &Path, line: &str) -> Result<(), String> {
 struct Outcome {
     now: Timestamp,
     requester: PrincipalId,
+    approver: PrincipalId,
     action_id: ObjectId,
     target_circle: CircleId,
     decision: AuditDecision,
@@ -374,6 +391,7 @@ fn finish(args: &Args, outcome: Outcome) -> Result<(), String> {
     let Outcome {
         now,
         requester,
+        approver,
         action_id,
         target_circle,
         decision,
@@ -399,7 +417,8 @@ fn finish(args: &Args, outcome: Outcome) -> Result<(), String> {
     let mut output = String::new();
     let _ = writeln!(output, "id: {action_id}");
     let _ = writeln!(output, "circle: {target_circle}");
-    let _ = writeln!(output, "principal: {}", args.principal);
+    let _ = writeln!(output, "principal: {requester}");
+    let _ = writeln!(output, "approver: {approver}");
     let _ = writeln!(output, "state: {state:?}");
     let _ = writeln!(output, "decision: {decision:?}  result: {result:?}");
     let _ = writeln!(output, "sources: {}", audit.source_refs().len());
@@ -433,7 +452,7 @@ fn main() -> ExitCode {
         Err(e) => {
             eprintln!("act: {e}");
             eprintln!(
-                "usage: act --store <file.jsonl> --audit-store <file.jsonl> --circle <uuid-v7> (--object <id> | --q <text>) [--policy allow|deny] [--principal <uuid-v7>] [--risk-class low|elevated|critical] [--reversibility cancellable|compensable|irreversible] [--policy-version <text>] [--policy-hash <text>] [--proposal-hash <text>] [--idempotency-key <text>] [--action-type <text>]"
+                "usage: act --store <file.jsonl> --audit-store <file.jsonl> --circle <uuid-v7> (--object <id> | --q <text>) [--policy allow|deny] [--principal <uuid-v7>] [--approver <uuid-v7>] [--risk-class low|elevated|critical] [--reversibility cancellable|compensable|irreversible] [--policy-version <text>] [--policy-hash <text>] [--proposal-hash <text>] [--idempotency-key <text>] [--action-type <text>]"
             );
             return ExitCode::from(2);
         }
@@ -479,7 +498,7 @@ fn main() -> ExitCode {
         &mut workflow,
         &ctx,
         args.policy,
-        args.principal,
+        args.approver,
         &proposal_hash,
         target_circle,
         &mut output,
@@ -496,6 +515,7 @@ fn main() -> ExitCode {
         Outcome {
             now,
             requester,
+            approver: args.approver,
             action_id,
             target_circle,
             decision,
