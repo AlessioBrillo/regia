@@ -12,6 +12,9 @@
 pub mod audit;
 pub mod entity;
 pub mod envelope;
+/// Demo-only fingerprints for the `act` example. Feature `synthetic`; never a production contract.
+#[cfg(feature = "synthetic")]
+pub mod fingerprint;
 pub mod id;
 pub mod label;
 pub mod object;
@@ -31,6 +34,8 @@ pub use entity::{
     SourceKind, Task, TaskStatus, Timestamp,
 };
 pub use envelope::{Envelope, Object, SCHEMA_VERSION, SchemaError};
+#[cfg(feature = "synthetic")]
+pub use fingerprint::{FingerprintError, policy_context_fingerprint, proposal_fingerprint};
 pub use id::{AreaId, CircleId, DeviceId, IdError, ObjectId, PersonId, PrincipalId, SourceId};
 pub use label::{Confidentiality, UnknownLabel};
 pub use object::ObjectHeader;

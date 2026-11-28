@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 serde.workspace = true
+serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 thiserror.workspace = true
 time.workspace = true
 uuid.workspace = true
@@ -19,8 +21,8 @@ proptest.workspace = true
 serde_json.workspace = true
 
 [features]
-# Deterministic synthetic datasets for experiments (DAT-01). Off by default.
-synthetic = []
+# Deterministic synthetic datasets and demo-only fingerprints. Off by default.
+synthetic = ["dep:sha2", "dep:serde_json"]
 
 [[example]]
 name = "dat01"
