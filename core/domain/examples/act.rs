@@ -468,7 +468,7 @@ fn finish(args: &Args, outcome: Outcome) -> Result<(), String> {
     {
         let _ = writeln!(
             output,
-            "warning: demo hash defaults in use; approval binding is not meaningful"
+            "warning: demo hash values in use; approval binding is not meaningful"
         );
     }
 

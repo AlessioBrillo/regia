@@ -5,7 +5,9 @@
 //! declaration per object, first-class provenance and area assignment (independent of
 //! circles), plus the logical entity schema v0
 //! ([`Envelope`]): a wire contract, *not* a storage decision (ADR-002/003).
-//! Sync, policy engine and cryptography are deliberately absent: they are open ADRs.
+//! Sync, policy engine and cryptography are deliberately absent from the production API: they
+//! are open ADRs. The `synthetic` feature adds demo-only SHA-256 fingerprints for the `act`
+//! example; it is not a product contract.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
