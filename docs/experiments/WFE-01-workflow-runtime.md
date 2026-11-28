@@ -35,6 +35,11 @@ WF-03 state machine: `requested → … → policy_evaluated → approved → ex
 outcome_unknown → reconciled → completed | compensated`. The external system is a **simulator** that can accept then
 time out, accept twice, fail permanently, or answer late. No real account is used.
 
+A reference implementation of that state machine lives in
+[`core/domain/src/workflow.rs`](../../core/domain/src/workflow.rs). It covers W-02, W-05 and W-06 at domain level and
+is a specification only: it does not persist state, run workers or inject faults. W-03/W-04 (retry and double click)
+are an explicit gap of that module, to be covered by this spike.
+
 ## Cases
 
 | ID | Case | Required result |

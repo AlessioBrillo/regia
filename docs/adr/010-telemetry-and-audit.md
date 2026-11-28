@@ -26,7 +26,10 @@ Constraint: audit access is itself authorized and auditable.
 
 ## Evidence
 
-None yet.
+The minimal, content-free record shape is defined in
+[`core/domain/src/audit.rs`](../../core/domain/src/audit.rs): actor, action, decision, policy version, result and source
+references only. No storage, retention, access-control or telemetry-backend claim follows from that shape; the
+decision remains pending.
 
 ## Consequences
 
