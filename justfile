@@ -47,6 +47,6 @@ query:
     cargo run -p regia-domain --features synthetic --example query -- --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}} --areas core/domain/examples/demo-areas.json --q "anna"
 
 # Azione governata: proposta da un oggetto catturato, policy deny-by-default e audit content-free.
-# Di default nega; passare --policy allow e rispondere y per vedere la catena completarsi.
+# Di default nega; per la catena completa usare il comando cargo run con --policy allow (vedi HT-07).
 act:
     cargo run -p regia-domain --features synthetic --example act -- --store target/demo-store.jsonl --circle {{DEMO_CIRCLE}} --audit-store target/demo-audit.jsonl --q "anna"

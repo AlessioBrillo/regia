@@ -39,11 +39,14 @@ incremento. Gli stati AR e gli ADR restano invariati: una demo non è evidenza d
 4. Esegui `act` con `--policy allow` e rispondi `y`: la catena deve arrivare a `completed` e l'audit deve riportare
    `allow` / `succeeded`.
 5. Apri `target/demo-audit.jsonl`: verifica che contenga solo identificatori, tempi, decisione, versione di policy,
-   risultato e riferimenti a sorgenti. Non deve contenere il testo catturato, né `CANARY-`.
-6. Verifica che l'output riporti `refused lines` e `withheld` separati per etichetta e cerchio.
-7. I casi negativi (approvazione stale, scaduta, cerchio diverso, contesto di policy cambiato) sono coperti dai test
+   risultato e riferimenti a sorgenti. Il campo `actor` è il principal sintetico dichiarato, stampato anche
+   nell'output come `principal:`. Non deve contenere il testo catturato, né `CANARY-`.
+6. Con `--policy allow` e hash di default compare un `warning`: i valori demo rendono i controlli di binding
+   vacui. Se vuoi una verifica significativa, passa `--policy-hash` e `--proposal-hash` espliciti.
+7. Verifica che l'output riporti `sources`, `refused lines` e `withheld` separati per etichetta e cerchio.
+8. I casi negativi (approvazione stale, scaduta, cerchio diverso, contesto di policy cambiato) sono coperti dai test
    automatici `cargo test -p regia-domain --test slice` e `--test workflow`: non serve ripeterli a mano.
-8. Conserva il RAW in locale, fuori dal repo. Non copiare input reali.
+9. Conserva il RAW in locale, fuori dal repo. Non copiare input reali.
 
 ## Comandi
 
@@ -51,7 +54,7 @@ incremento. Gli stati AR e gli ADR restano invariati: una demo non è evidenza d
 # Reproduce lo store sintetico, se necessario:
 just demo
 
-# Una riga per oggetto: default deny (fail closed):
+# Trace del flusso con default deny (fail closed):
 cargo run -p regia-domain --features synthetic --example act -- \
   --store target/demo-store.jsonl \
   --circle 01a21ee0-d408-7000-8000-000000000001 \
@@ -75,8 +78,12 @@ cargo test -p regia-domain --test workflow
 ```
 
 `--audit-store` è un file JSONL in append, come lo store della demo: eseguire più volte aggiunge righe. Entrambi i file
-stanno sotto `target/`, che è gitignored. `--policy-hash`, `--proposal-hash`, `--idempotency-key`, `--policy-version` e
-`--action-type` hanno valori di default dichiaratamente demo e possono essere sostituiti; non sono fingerprint reali.
+stanno sotto `target/`, che è gitignored, e devono essere percorsi diversi. `--q` deve corrispondere a **una sola**
+attività visibile: se ne trova diverse, il comando rifiuta e bisogna usare `--object` con l'id stampato da `capture`.
+`--principal` (default sintetico `01a21ee0-d408-7000-8000-000000000002`), `--risk-class` e `--reversibility` sono
+dichiarazioni del chiamante, non decisioni di policy. `--policy-hash`, `--proposal-hash`, `--idempotency-key`,
+`--policy-version` e `--action-type` hanno valori di default dichiaratamente demo e possono essere sostituiti; non
+sono fingerprint reali.
 
 ## Evidenze da conservare
 
@@ -84,7 +91,7 @@ stanno sotto `target/`, che è gitignored. `--policy-hash`, `--proposal-hash`, `
 - Conferma che il default è `deny` e che `n` non produce esecuzione
 - RAW della risposta `y`, con gli stati attraversati fino a `completed`
 - Contenuto di `target/demo-audit.jsonl`: campi presenti, assenza di testo catturato e di `CANARY-`
-- Conteggio `matches`/`withheld`/`refused lines` e risultati dei due comandi di test
+- Conteggio `sources`/`withheld`/`refused lines`, il campo `principal` e risultati dei due comandi di test
 
 ## Criteri di accettazione
 
@@ -92,7 +99,7 @@ stanno sotto `target/`, che è gitignored. `--policy-hash`, `--proposal-hash`, `
 - [ ] `--policy allow` + `y`: stato `completed`, audit `allow` / `succeeded`, sorgente citata
 - [ ] `--policy allow` + `n`: nessuna esecuzione, audit negato
 - [ ] L'audit non contiene payload, prompt, testo catturato o `CANARY-`
-- [ ] Righe malformate e oggetti trattenuti contati, non silenziati
+- [ ] Righe malformate e oggetti trattenuti contati, non silenziati; selezione ambigua rifiutata
 - [ ] Test dei casi negativi eseguiti e verdi
 - [ ] Nessun dato personale nei file prodotti
 - [ ] Nessun ADR accettato, nessuna decisione aperta ratificata, stati AR invariati
