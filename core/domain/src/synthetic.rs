@@ -578,6 +578,23 @@ pub enum ActionError {
     BlankValue(#[from] BlankValue),
 }
 
+/// Caller-supplied declarations for one proposed action, kept opaque and non-cryptographic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ActionDraft<'a> {
+    /// Declared action class, for example `create_task`.
+    pub action_type: &'a str,
+    /// Caller-supplied fingerprint of the policy context.
+    pub policy_context_hash: &'a str,
+    /// Stable key an executor must use to make retries safe.
+    pub idempotency_key: &'a str,
+    /// Declared risk class.
+    pub risk_class: RiskClass,
+    /// Declared reversibility.
+    pub reversibility: Reversibility,
+    /// Latest instant at which this proposal is valid.
+    pub expires_at: Timestamp,
+}
+
 /// Proposes one local action from a captured task, citing the capture as evidence.
 ///
 /// This is a deterministic demo rule, not a model call, a policy decision or a workflow
@@ -591,10 +608,7 @@ pub enum ActionError {
 pub fn propose_action_for_task(
     task: &Task,
     requester: PrincipalId,
-    action_type: &str,
-    policy_context_hash: &str,
-    idempotency_key: &str,
-    expires_at: Timestamp,
+    draft: ActionDraft<'_>,
 ) -> Result<ActionProposal, ActionError> {
     let source = task
         .title
@@ -607,15 +621,15 @@ pub fn propose_action_for_task(
         id: ObjectId::new(),
         requester,
         target_circle: task.header.circle,
-        action_type: ActionType::new(action_type)?,
+        action_type: ActionType::new(draft.action_type)?,
         target_resource_refs: vec![task.header.id],
         proposed_payload: Payload::new(task.title.value.clone()),
         source_refs: vec![source],
-        policy_context_hash: PolicyContextHash::new(policy_context_hash)?,
-        risk_class: RiskClass::Low,
-        reversibility: Reversibility::Cancellable,
-        idempotency_key: IdempotencyKey::new(idempotency_key)?,
-        expires_at,
+        policy_context_hash: PolicyContextHash::new(draft.policy_context_hash)?,
+        risk_class: draft.risk_class,
+        reversibility: draft.reversibility,
+        idempotency_key: IdempotencyKey::new(draft.idempotency_key)?,
+        expires_at: draft.expires_at,
         approval_requirement: ApprovalRequirement::Required,
     })
 }
@@ -735,6 +749,22 @@ mod tests {
     use serde_json::Value;
 
     use super::*;
+
+    fn draft<'a>(
+        action: &'a str,
+        policy: &'a str,
+        idem: &'a str,
+        at: Timestamp,
+    ) -> ActionDraft<'a> {
+        ActionDraft {
+            action_type: action,
+            policy_context_hash: policy,
+            idempotency_key: idem,
+            risk_class: RiskClass::Low,
+            reversibility: Reversibility::Cancellable,
+            expires_at: at,
+        }
+    }
 
     fn lines(seed: u64, p: &Profile) -> Vec<String> {
         generate(seed, p)
@@ -1059,10 +1089,7 @@ mod tests {
         let proposal = propose_action_for_task(
             &task,
             requester,
-            "create_task",
-            "demo-policy-v1",
-            "demo-idem-v1",
-            at,
+            draft("create_task", "demo-policy-v1", "demo-idem-v1", at),
         )
         .unwrap();
 
@@ -1074,6 +1101,8 @@ mod tests {
             task.title.provenance.sources().cloned().collect::<Vec<_>>()
         );
         assert_eq!(proposal.approval_requirement, ApprovalRequirement::Required);
+        assert_eq!(proposal.risk_class, RiskClass::Low);
+        assert_eq!(proposal.reversibility, Reversibility::Cancellable);
         assert_eq!(
             proposal.policy_context_hash,
             PolicyContextHash::new("demo-policy-v1").unwrap()
@@ -1098,10 +1127,7 @@ mod tests {
             propose_action_for_task(
                 &unsourced,
                 PrincipalId::new(),
-                "create_task",
-                "demo-policy-v1",
-                "demo-idem-v1",
-                at
+                draft("create_task", "demo-policy-v1", "demo-idem-v1", at)
             ),
             Err(ActionError::NoSource)
         );
@@ -1112,15 +1138,23 @@ mod tests {
         let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
         let task = capture_text("Synthetic: call Anna", at).unwrap();
         assert!(matches!(
-            propose_action_for_task(&task, PrincipalId::new(), " ", "p", "i", at),
+            propose_action_for_task(&task, PrincipalId::new(), draft(" ", "p", "i", at)),
             Err(ActionError::BlankValue(_))
         ));
         assert!(matches!(
-            propose_action_for_task(&task, PrincipalId::new(), "create_task", " ", "i", at),
+            propose_action_for_task(
+                &task,
+                PrincipalId::new(),
+                draft("create_task", " ", "i", at)
+            ),
             Err(ActionError::BlankValue(_))
         ));
         assert!(matches!(
-            propose_action_for_task(&task, PrincipalId::new(), "create_task", "p", " ", at),
+            propose_action_for_task(
+                &task,
+                PrincipalId::new(),
+                draft("create_task", "p", " ", at)
+            ),
             Err(ActionError::BlankValue(_))
         ));
     }

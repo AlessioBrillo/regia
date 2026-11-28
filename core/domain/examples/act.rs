@@ -17,10 +17,16 @@ use std::{
 use regia_domain::{
     Approval, AuditDecision, AuditEvent, AuditRecord, AuditResult, CircleId, Envelope, Object,
     ObjectId, PolicyContextHash, PolicyVersion, PrincipalId, ProposalHash, ReadDecision, ReadView,
-    SourceRef, Task, Timestamp, TransitionContext, Withheld, Workflow, WorkflowEvent,
-    synthetic::propose_action_for_task,
+    Reversibility, RiskClass, SourceRef, Task, Timestamp, TransitionContext, Withheld, Workflow,
+    WorkflowEvent, WorkflowState,
+    synthetic::{ActionDraft, propose_action_for_task},
 };
 use time::{Duration, OffsetDateTime};
+
+/// A declared synthetic principal: stable across runs so the audit can attribute an action.
+const DEMO_PRINCIPAL: &str = "01a21ee0-d408-7000-8000-000000000002";
+const DEFAULT_POLICY_HASH: &str = "demo-policy-v1";
+const DEFAULT_PROPOSAL_HASH: &str = "demo-proposal-v1";
 
 /// The caller-supplied policy decision. There is no implicit allow.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -36,11 +42,44 @@ struct Args {
     object: Option<ObjectId>,
     needle: Option<String>,
     policy: PolicyChoice,
+    principal: PrincipalId,
+    risk_class: RiskClass,
+    reversibility: Reversibility,
     policy_version: String,
     policy_hash: String,
     proposal_hash: String,
     idempotency_key: String,
     action_type: String,
+}
+
+fn parse_policy(value: &str) -> Result<PolicyChoice, String> {
+    match value {
+        "allow" => Ok(PolicyChoice::Allow),
+        "deny" => Ok(PolicyChoice::Deny),
+        other => Err(format!("--policy must be allow or deny, got {other}")),
+    }
+}
+
+fn parse_risk_class(value: &str) -> Result<RiskClass, String> {
+    match value {
+        "low" => Ok(RiskClass::Low),
+        "elevated" => Ok(RiskClass::Elevated),
+        "critical" => Ok(RiskClass::Critical),
+        other => Err(format!(
+            "--risk-class must be low|elevated|critical, got {other}"
+        )),
+    }
+}
+
+fn parse_reversibility(value: &str) -> Result<Reversibility, String> {
+    match value {
+        "cancellable" => Ok(Reversibility::Cancellable),
+        "compensable" => Ok(Reversibility::Compensable),
+        "irreversible" => Ok(Reversibility::Irreversible),
+        other => Err(format!(
+            "--reversibility must be cancellable|compensable|irreversible, got {other}"
+        )),
+    }
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -50,9 +89,14 @@ fn parse_args() -> Result<Args, String> {
     let mut object = None;
     let mut needle = None;
     let mut policy = PolicyChoice::Deny;
+    let mut principal = DEMO_PRINCIPAL
+        .parse::<PrincipalId>()
+        .map_err(|e| format!("invalid demo principal: {e}"))?;
+    let mut risk_class = RiskClass::Low;
+    let mut reversibility = Reversibility::Cancellable;
     let mut policy_version = "demo-policy-v1".to_owned();
-    let mut policy_hash = "demo-policy-v1".to_owned();
-    let mut proposal_hash = "demo-proposal-v1".to_owned();
+    let mut policy_hash = DEFAULT_POLICY_HASH.to_owned();
+    let mut proposal_hash = DEFAULT_PROPOSAL_HASH.to_owned();
     let mut idempotency_key = "demo-idem-v1".to_owned();
     let mut action_type = "create_task".to_owned();
 
@@ -77,11 +121,15 @@ fn parse_args() -> Result<Args, String> {
                 );
             }
             "--q" => needle = Some(value("--q")?),
-            "--policy" => match value("--policy")?.as_str() {
-                "allow" => policy = PolicyChoice::Allow,
-                "deny" => policy = PolicyChoice::Deny,
-                other => return Err(format!("--policy must be allow or deny, got {other}")),
-            },
+            "--policy" => policy = parse_policy(&value("--policy")?)?,
+            "--principal" => {
+                let raw = value("--principal")?;
+                principal = raw
+                    .parse::<PrincipalId>()
+                    .map_err(|e| format!("--principal: {e}"))?;
+            }
+            "--risk-class" => risk_class = parse_risk_class(&value("--risk-class")?)?,
+            "--reversibility" => reversibility = parse_reversibility(&value("--reversibility")?)?,
             "--policy-version" => policy_version = value("--policy-version")?,
             "--policy-hash" => policy_hash = value("--policy-hash")?,
             "--proposal-hash" => proposal_hash = value("--proposal-hash")?,
@@ -92,6 +140,9 @@ fn parse_args() -> Result<Args, String> {
     }
     let store = store.ok_or("--store is required")?;
     let audit_store = audit_store.ok_or("--audit-store is required")?;
+    if store == audit_store {
+        return Err("--store and --audit-store must differ".to_owned());
+    }
     // Fail closed: without a circle nothing is read from the store.
     let circle = circle.ok_or("--circle is required")?;
     if object.is_none() && needle.is_none() {
@@ -104,6 +155,9 @@ fn parse_args() -> Result<Args, String> {
         object,
         needle,
         policy,
+        principal,
+        risk_class,
+        reversibility,
         policy_version,
         policy_hash,
         proposal_hash,
@@ -112,8 +166,16 @@ fn parse_args() -> Result<Args, String> {
     })
 }
 
-/// Returns the selected task and the counts of refused/withheld lines.
-fn select_task(args: &Args) -> Result<(Task, usize, usize, usize), String> {
+/// The one selected task and the counts of refused/withheld lines.
+struct Selection {
+    task: Task,
+    refused: usize,
+    withheld_label: usize,
+    withheld_circle: usize,
+}
+
+/// Selects exactly one visible task; an ambiguous match is a refusal.
+fn select_task(args: &Args) -> Result<Selection, String> {
     let jsonl = fs::read_to_string(&args.store)
         .map_err(|e| format!("cannot read {}: {e}", args.store.display()))?;
     let view = ReadView::owner(args.circle);
@@ -159,15 +221,20 @@ fn select_task(args: &Args) -> Result<(Task, usize, usize, usize), String> {
             withheld_label + withheld_circle
         ));
     }
-    if args.object.is_some() && candidates.len() > 1 {
-        return Err("more than one visible task matches the id; refusing".to_owned());
+    if candidates.len() != 1 {
+        return Err(format!(
+            "expected exactly one visible task, found {}; use --object to disambiguate",
+            candidates.len()
+        ));
     }
-    Ok((
-        candidates.remove(0),
+    Ok(Selection {
+        task: candidates
+            .pop()
+            .ok_or_else(|| "no visible task selected".to_owned())?,
         refused,
         withheld_label,
         withheld_circle,
-    ))
+    })
 }
 
 /// Advances the reference state machine; a denial is never mapped to an allow.
@@ -175,6 +242,7 @@ fn drive(
     workflow: &mut Workflow,
     ctx: &TransitionContext<'_>,
     policy: PolicyChoice,
+    approver: PrincipalId,
     proposal_hash: &ProposalHash,
     target_circle: CircleId,
     output: &mut String,
@@ -211,7 +279,7 @@ fn drive(
                 .map_err(|e| format!("cannot read approval: {e}"))?;
             if answer.trim().eq_ignore_ascii_case("y") {
                 let approval = Approval {
-                    approver: PrincipalId::new(),
+                    approver,
                     at: ctx.now,
                     expires_at: Timestamp(ctx.now.0 + Duration::minutes(5)),
                     proposal_hash: proposal_hash.clone(),
@@ -244,15 +312,19 @@ struct Prepared {
 }
 
 fn prepare(task: &Task, args: &Args, now: Timestamp) -> Result<Prepared, String> {
-    let requester = PrincipalId::new();
+    let requester = args.principal;
     let expires_at = Timestamp(now.0 + Duration::minutes(10));
     let proposal = propose_action_for_task(
         task,
         requester,
-        &args.action_type,
-        &args.policy_hash,
-        &args.idempotency_key,
-        expires_at,
+        ActionDraft {
+            action_type: &args.action_type,
+            policy_context_hash: &args.policy_hash,
+            idempotency_key: &args.idempotency_key,
+            risk_class: args.risk_class,
+            reversibility: args.reversibility,
+            expires_at,
+        },
     )
     .map_err(|e| format!("cannot propose action: {e}"))?;
     let action_id = proposal.id;
@@ -282,20 +354,98 @@ fn append_audit(path: &Path, line: &str) -> Result<(), String> {
     writeln!(file, "{line}").map_err(|e| format!("cannot append audit: {e}"))
 }
 
+/// The facts a caller needs to render, written to the audit store without content.
+struct Outcome {
+    now: Timestamp,
+    requester: PrincipalId,
+    action_id: ObjectId,
+    target_circle: CircleId,
+    decision: AuditDecision,
+    result: AuditResult,
+    policy_version: PolicyVersion,
+    source_refs: Vec<SourceRef>,
+    state: WorkflowState,
+    refused: usize,
+    withheld_label: usize,
+    withheld_circle: usize,
+}
+
+fn finish(args: &Args, outcome: Outcome) -> Result<(), String> {
+    let Outcome {
+        now,
+        requester,
+        action_id,
+        target_circle,
+        decision,
+        result,
+        policy_version,
+        source_refs,
+        state,
+        refused,
+        withheld_label,
+        withheld_circle,
+    } = outcome;
+    let audit = AuditEvent::new(AuditRecord {
+        at: now,
+        actor: requester,
+        action: action_id,
+        decision,
+        policy_version,
+        result,
+        source_refs,
+    });
+    let audit_line =
+        serde_json::to_string(&audit).map_err(|e| format!("serialisation failed: {e}"))?;
+    let mut output = String::new();
+    let _ = writeln!(output, "id: {action_id}");
+    let _ = writeln!(output, "circle: {target_circle}");
+    let _ = writeln!(output, "principal: {}", args.principal);
+    let _ = writeln!(output, "state: {state:?}");
+    let _ = writeln!(output, "decision: {decision:?}  result: {result:?}");
+    let _ = writeln!(output, "sources: {}", audit.source_refs().len());
+    let _ = writeln!(
+        output,
+        "refused lines: {refused}  withheld: {} (label: {withheld_label}, circle: {withheld_circle})",
+        withheld_label + withheld_circle
+    );
+    let _ = writeln!(output, "audit: {}", args.audit_store.display());
+    if args.policy == PolicyChoice::Allow
+        && (args.policy_hash == DEFAULT_POLICY_HASH || args.proposal_hash == DEFAULT_PROPOSAL_HASH)
+    {
+        let _ = writeln!(
+            output,
+            "warning: demo hash defaults in use; approval binding is not meaningful"
+        );
+    }
+
+    // Last line of defence: never write or print content, even if a future change leaks it.
+    if audit_line.contains("CANARY-") || output.contains("CANARY-") {
+        return Err("canary found; refusing to write or print".to_owned());
+    }
+    append_audit(&args.audit_store, &audit_line)?;
+    print!("{output}");
+    Ok(())
+}
+
 fn main() -> ExitCode {
     let args = match parse_args() {
         Ok(a) => a,
         Err(e) => {
             eprintln!("act: {e}");
             eprintln!(
-                "usage: act --store <file.jsonl> --audit-store <file.jsonl> --circle <uuid-v7> (--object <id> | --q <text>) [--policy allow|deny] [--policy-version <text>] [--policy-hash <text>] [--proposal-hash <text>] [--idempotency-key <text>] [--action-type <text>]"
+                "usage: act --store <file.jsonl> --audit-store <file.jsonl> --circle <uuid-v7> (--object <id> | --q <text>) [--policy allow|deny] [--principal <uuid-v7>] [--risk-class low|elevated|critical] [--reversibility cancellable|compensable|irreversible] [--policy-version <text>] [--policy-hash <text>] [--proposal-hash <text>] [--idempotency-key <text>] [--action-type <text>]"
             );
             return ExitCode::from(2);
         }
     };
 
     let now = Timestamp(OffsetDateTime::now_utc());
-    let (task, refused, withheld_label, withheld_circle) = match select_task(&args) {
+    let Selection {
+        task,
+        refused,
+        withheld_label,
+        withheld_circle,
+    } = match select_task(&args) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("act: {e}");
@@ -329,6 +479,7 @@ fn main() -> ExitCode {
         &mut workflow,
         &ctx,
         args.policy,
+        args.principal,
         &proposal_hash,
         target_circle,
         &mut output,
@@ -340,43 +491,25 @@ fn main() -> ExitCode {
         }
     };
 
-    let audit = AuditEvent::new(AuditRecord {
-        at: now,
-        actor: requester,
-        action: action_id,
-        decision,
-        policy_version,
-        result,
-        source_refs,
-    });
-    let audit_line = match serde_json::to_string(&audit) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("act: serialisation failed: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let _ = writeln!(output, "id: {action_id}");
-    let _ = writeln!(output, "circle: {target_circle}");
-    let _ = writeln!(output, "state: {:?}", workflow.state());
-    let _ = writeln!(output, "decision: {decision:?}  result: {result:?}");
-    let _ = writeln!(output, "sources: {}", audit.source_refs().len());
-    let _ = writeln!(
-        output,
-        "refused lines: {refused}  withheld: {} (label: {withheld_label}, circle: {withheld_circle})",
-        withheld_label + withheld_circle
-    );
-    let _ = writeln!(output, "audit: {}", args.audit_store.display());
-
-    // Last line of defence: never write or print content, even if a future change leaks it.
-    if audit_line.contains("CANARY-") || output.contains("CANARY-") {
-        eprintln!("act: canary found; refusing to write or print");
-        return ExitCode::FAILURE;
-    }
-    if let Err(e) = append_audit(&args.audit_store, &audit_line) {
+    if let Err(e) = finish(
+        &args,
+        Outcome {
+            now,
+            requester,
+            action_id,
+            target_circle,
+            decision,
+            result,
+            policy_version,
+            source_refs,
+            state: workflow.state(),
+            refused,
+            withheld_label,
+            withheld_circle,
+        },
+    ) {
         eprintln!("act: {e}");
         return ExitCode::FAILURE;
     }
-    print!("{output}");
     ExitCode::SUCCESS
 }

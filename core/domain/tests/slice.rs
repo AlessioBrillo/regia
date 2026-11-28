@@ -7,9 +7,9 @@
 
 use regia_domain::{
     Approval, AuditDecision, AuditEvent, AuditRecord, AuditResult, CircleId, PolicyContextHash,
-    PolicyVersion, PrincipalId, ProposalHash, Timestamp, TransitionContext, TransitionError,
-    Workflow, WorkflowEvent, WorkflowState,
-    synthetic::{capture_text_in_circle, propose_action_for_task},
+    PolicyVersion, PrincipalId, ProposalHash, Reversibility, RiskClass, Timestamp,
+    TransitionContext, TransitionError, Workflow, WorkflowEvent, WorkflowState,
+    synthetic::{ActionDraft, capture_text_in_circle, propose_action_for_task},
 };
 use time::OffsetDateTime;
 
@@ -30,10 +30,14 @@ fn setup() -> (
     let proposal = propose_action_for_task(
         &task,
         requester,
-        "create_task",
-        "policy-a",
-        "idem-1",
-        at(100),
+        ActionDraft {
+            action_type: "create_task",
+            policy_context_hash: "policy-a",
+            idempotency_key: "idem-1",
+            risk_class: RiskClass::Low,
+            reversibility: Reversibility::Cancellable,
+            expires_at: at(100),
+        },
     )
     .unwrap();
     let policy = PolicyContextHash::new("policy-a").unwrap();
