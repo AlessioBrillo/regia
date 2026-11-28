@@ -80,8 +80,10 @@ cargo test -p regia-domain --test workflow
 `--audit-store` è un file JSONL in append, come lo store della demo: eseguire più volte aggiunge righe. Entrambi i file
 stanno sotto `target/`, che è gitignored, e devono essere percorsi diversi. `--q` deve corrispondere a **una sola**
 attività visibile: se ne trova diverse, il comando rifiuta e bisogna usare `--object` con l'id stampato da `capture`.
-`--principal` (default sintetico `01a21ee0-d408-7000-8000-000000000002`), `--risk-class` e `--reversibility` sono
-dichiarazioni del chiamante, non decisioni di policy. `--policy-hash`, `--proposal-hash`, `--idempotency-key`,
+`--principal` (richiedente, default sintetico `01a21ee0-d408-7000-8000-000000000002`) e `--approver` (approvatore,
+default `01a21ee0-d408-7000-8000-000000000003`) sono identità distinte; l'audit riporta il richiedente come `actor`,
+mentre l'approvatore compare nella traccia dell'evento. `--risk-class` e `--reversibility` sono dichiarazioni del
+chiamante, non decisioni di policy. `--policy-hash`, `--proposal-hash`, `--idempotency-key`,
 `--policy-version` e `--action-type` hanno valori di default dichiaratamente demo e possono essere sostituiti; non
 sono fingerprint reali.
 
@@ -91,7 +93,7 @@ sono fingerprint reali.
 - Conferma che il default è `deny` e che `n` non produce esecuzione
 - RAW della risposta `y`, con gli stati attraversati fino a `completed`
 - Contenuto di `target/demo-audit.jsonl`: campi presenti, assenza di testo catturato e di `CANARY-`
-- Conteggio `sources`/`withheld`/`refused lines`, il campo `principal` e risultati dei due comandi di test
+- Conteggio `sources`/`withheld`/`refused lines`, i campi `principal`/`approver` e risultati dei due comandi di test
 
 ## Criteri di accettazione
 
