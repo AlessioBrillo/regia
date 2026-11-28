@@ -10,10 +10,11 @@
 //! `ponytail:` the PRNG is `splitmix64`, fine for fixtures and never for anything secret.
 
 use crate::{
-    AreaId, Assertion, Circle, CircleId, Confidence, Confidentiality, DateRole, DatedValue,
-    Document, Envelope, Event, Fact, Locator, Membership, Object, ObjectHeader, ObjectId, Person,
-    PersonId, PrincipalId, Provenance, Role, ServerVisibility, Source, SourceId, SourceKind,
-    SourceRef, Task, TaskStatus, Timestamp, UnsourcedReason,
+    ActionProposal, ActionType, ApprovalRequirement, AreaId, Assertion, BlankValue, Circle,
+    CircleId, Confidence, Confidentiality, DateRole, DatedValue, Document, Envelope, Event, Fact,
+    IdempotencyKey, Locator, Membership, Object, ObjectHeader, ObjectId, Payload, Person, PersonId,
+    PolicyContextHash, PrincipalId, Provenance, Reversibility, RiskClass, Role, ServerVisibility,
+    Source, SourceId, SourceKind, SourceRef, Task, TaskStatus, Timestamp, UnsourcedReason,
 };
 use time::OffsetDateTime;
 use uuid::{Builder, Uuid};
@@ -566,6 +567,59 @@ pub fn confirm_area(task: &Task, area: AreaId, reason: &str) -> Result<Task, Are
     Ok(confirmed)
 }
 
+/// An action proposal could not be built from a captured task.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ActionError {
+    /// A model-style proposal without a source is unrepresentable (AR-06).
+    #[error("a proposed action needs a source on the captured text")]
+    NoSource,
+    /// A caller-supplied field was blank.
+    #[error(transparent)]
+    BlankValue(#[from] BlankValue),
+}
+
+/// Proposes one local action from a captured task, citing the capture as evidence.
+///
+/// This is a deterministic demo rule, not a model call, a policy decision or a workflow
+/// runtime: the caller supplies the opaque hashes and the policy decision separately
+/// ([`crate::workflow`]; ADR-007 is still proposed). No cryptographic primitive is used.
+///
+/// # Errors
+///
+/// [`ActionError::NoSource`] when the captured title has no source, or
+/// [`ActionError::BlankValue`] when a caller-supplied field is blank.
+pub fn propose_action_for_task(
+    task: &Task,
+    requester: PrincipalId,
+    action_type: &str,
+    policy_context_hash: &str,
+    idempotency_key: &str,
+    expires_at: Timestamp,
+) -> Result<ActionProposal, ActionError> {
+    let source = task
+        .title
+        .provenance
+        .sources()
+        .next()
+        .ok_or(ActionError::NoSource)?
+        .clone();
+    Ok(ActionProposal {
+        id: ObjectId::new(),
+        requester,
+        target_circle: task.header.circle,
+        action_type: ActionType::new(action_type)?,
+        target_resource_refs: vec![task.header.id],
+        proposed_payload: Payload::new(task.title.value.clone()),
+        source_refs: vec![source],
+        policy_context_hash: PolicyContextHash::new(policy_context_hash)?,
+        risk_class: RiskClass::Low,
+        reversibility: Reversibility::Cancellable,
+        idempotency_key: IdempotencyKey::new(idempotency_key)?,
+        expires_at,
+        approval_requirement: ApprovalRequirement::Required,
+    })
+}
+
 /// One object found by [`search_envelopes`], with the evidence of the matching field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchMatch {
@@ -995,6 +1049,80 @@ mod tests {
             confirm_area(&task, AreaId::new(), "  "),
             Err(AreaError::BlankReason)
         );
+    }
+
+    #[test]
+    fn proposed_action_cites_the_capture_and_is_scoped_to_the_task() {
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text("Synthetic: call Anna tomorrow", at).unwrap();
+        let requester = PrincipalId::new();
+        let proposal = propose_action_for_task(
+            &task,
+            requester,
+            "create_task",
+            "demo-policy-v1",
+            "demo-idem-v1",
+            at,
+        )
+        .unwrap();
+
+        assert_eq!(proposal.requester, requester);
+        assert_eq!(proposal.target_circle, task.header.circle);
+        assert_eq!(proposal.target_resource_refs, vec![task.header.id]);
+        assert_eq!(
+            proposal.source_refs,
+            task.title.provenance.sources().cloned().collect::<Vec<_>>()
+        );
+        assert_eq!(proposal.approval_requirement, ApprovalRequirement::Required);
+        assert_eq!(
+            proposal.policy_context_hash,
+            PolicyContextHash::new("demo-policy-v1").unwrap()
+        );
+        assert!(!format!("{:?}", proposal.proposed_payload).contains("tomorrow"));
+    }
+
+    #[test]
+    fn proposed_action_refuses_a_task_without_a_source() {
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text("Synthetic: call Anna", at).unwrap();
+        let unsourced = Task {
+            title: Fact {
+                provenance: Provenance::Unsourced {
+                    reason: UnsourcedReason::new("typed by user").unwrap(),
+                },
+                ..task.title.clone()
+            },
+            ..task
+        };
+        assert_eq!(
+            propose_action_for_task(
+                &unsourced,
+                PrincipalId::new(),
+                "create_task",
+                "demo-policy-v1",
+                "demo-idem-v1",
+                at
+            ),
+            Err(ActionError::NoSource)
+        );
+    }
+
+    #[test]
+    fn proposed_action_refuses_blank_caller_fields() {
+        let at = Timestamp(OffsetDateTime::UNIX_EPOCH);
+        let task = capture_text("Synthetic: call Anna", at).unwrap();
+        assert!(matches!(
+            propose_action_for_task(&task, PrincipalId::new(), " ", "p", "i", at),
+            Err(ActionError::BlankValue(_))
+        ));
+        assert!(matches!(
+            propose_action_for_task(&task, PrincipalId::new(), "create_task", " ", "i", at),
+            Err(ActionError::BlankValue(_))
+        ));
+        assert!(matches!(
+            propose_action_for_task(&task, PrincipalId::new(), "create_task", "p", " ", at),
+            Err(ActionError::BlankValue(_))
+        ));
     }
 
     #[test]
