@@ -5,13 +5,18 @@
 //! declaration per object, first-class provenance and area assignment (independent of
 //! circles), plus the logical entity schema v0
 //! ([`Envelope`]): a wire contract, *not* a storage decision (ADR-002/003).
-//! Sync, policy engine and cryptography are deliberately absent: they are open ADRs.
+//! Sync, policy engine and cryptography are deliberately absent from the production API: they
+//! are open ADRs. The `synthetic` feature adds demo-only SHA-256 fingerprints for the `act`
+//! example; it is not a product contract.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod audit;
 pub mod entity;
 pub mod envelope;
+/// Demo-only fingerprints for the `act` example. Feature `synthetic`; never a production contract.
+#[cfg(feature = "synthetic")]
+pub mod fingerprint;
 pub mod id;
 pub mod label;
 pub mod object;
@@ -31,6 +36,8 @@ pub use entity::{
     SourceKind, Task, TaskStatus, Timestamp,
 };
 pub use envelope::{Envelope, Object, SCHEMA_VERSION, SchemaError};
+#[cfg(feature = "synthetic")]
+pub use fingerprint::{FingerprintError, policy_context_fingerprint, proposal_fingerprint};
 pub use id::{AreaId, CircleId, DeviceId, IdError, ObjectId, PersonId, PrincipalId, SourceId};
 pub use label::{Confidentiality, UnknownLabel};
 pub use object::ObjectHeader;

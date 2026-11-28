@@ -38,7 +38,9 @@ time out, accept twice, fail permanently, or answer late. No real account is use
 A reference implementation of that state machine lives in
 [`core/domain/src/workflow.rs`](../../core/domain/src/workflow.rs). It covers W-02, W-05 and W-06 at domain level and
 is a specification only: it does not persist state, run workers or inject faults. W-03/W-04 (retry and double click)
-are an explicit gap of that module, to be covered by this spike.
+now have domain-level contract coverage in
+[`core/domain/tests/idempotency.rs`](../../core/domain/tests/idempotency.rs), under an in-memory compliant executor;
+this spike must still verify the external side effect with its simulator.
 
 ## Cases
 
