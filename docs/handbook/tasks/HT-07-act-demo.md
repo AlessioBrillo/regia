@@ -41,11 +41,15 @@ incremento. Gli stati AR e gli ADR restano invariati: una demo non è evidenza d
 5. Apri `target/demo-audit.jsonl`: verifica che contenga solo identificatori, tempi, decisione, versione di policy,
    risultato e riferimenti a sorgenti. Il campo `actor` è il principal sintetico dichiarato, stampato anche
    nell'output come `principal:`. Non deve contenere il testo catturato, né `CANARY-`.
-6. Con `--policy allow` e hash di default compare un `warning`: i valori demo rendono i controlli di binding
-   vacui. Se vuoi una verifica significativa, passa `--policy-hash` e `--proposal-hash` espliciti.
+6. Con `--policy allow` gli hash sono derivati dal contesto di policy e dal proposal reali: non compare alcun
+   `warning` e i controlli di binding sono significativi. Il `warning` compare solo se passi esplicitamente i vecchi
+   valori demo `--policy-hash demo-policy-v1` o `--proposal-hash demo-proposal-v1`. Un override da CLI non può
+   produrre un rifiuto stale, perché approvazione e contesto usano lo stesso valore: i casi negativi sono nei test
+   automatici (passo 8).
 7. Verifica che l'output riporti `sources`, `refused lines` e `withheld` separati per etichetta e cerchio.
 8. I casi negativi (approvazione stale, scaduta, cerchio diverso, contesto di policy cambiato) sono coperti dai test
-   automatici `cargo test -p regia-domain --test slice` e `--test workflow`: non serve ripeterli a mano.
+   automatici `cargo test -p regia-domain --test slice`, `--test workflow` e `--test fingerprint`; l'idempotenza
+   W-03/W-04 è coperta da `--test idempotency`: non serve ripeterli a mano.
 9. Conserva il RAW in locale, fuori dal repo. Non copiare input reali.
 
 ## Comandi
@@ -72,9 +76,9 @@ cargo run -p regia-domain --features synthetic --example act -- \
   --circle 01a21ee0-d408-7000-8000-000000000001 \
   --audit-store target/demo-audit.jsonl --object <id-stampato-da-capture> --policy allow
 
-# Test dei casi negativi:
-cargo test -p regia-domain --features synthetic --test slice
-cargo test -p regia-domain --test workflow
+# Test dei casi negativi e del binding degli hash derivati:
+cargo test -p regia-domain --features synthetic --test slice --test fingerprint
+cargo test -p regia-domain --test workflow --test idempotency
 ```
 
 `--audit-store` è un file JSONL in append, come lo store della demo: eseguire più volte aggiunge righe. Entrambi i file
@@ -83,14 +87,18 @@ attività visibile: se ne trova diverse, il comando rifiuta e bisogna usare `--o
 `--principal` (richiedente, default sintetico `01a21ee0-d408-7000-8000-000000000002`) e `--approver` (approvatore,
 default `01a21ee0-d408-7000-8000-000000000003`) sono identità distinte; l'audit riporta il richiedente come `actor`,
 mentre l'approvatore compare nella traccia dell'evento. `--risk-class` e `--reversibility` sono dichiarazioni del
-chiamante, non decisioni di policy. `--policy-hash`, `--proposal-hash`, `--idempotency-key`,
-`--policy-version` e `--action-type` hanno valori di default dichiaratamente demo e possono essere sostituiti; non
-sono fingerprint reali.
+chiamante, non decisioni di policy. `--policy-hash` e `--proposal-hash` **non** hanno più valori demo di default:
+sono derivati dal contesto di policy (decisione dichiarata, versione, cerchio, richiedente) e dal proposal completo
+tramite `regia_domain::fingerprint` (SHA-256 con domain separation, solo sotto la feature `synthetic`). Gli override
+espliciti restano disponibili per riprodurre casi negativi; se passi i vecchi valori demo compare il `warning`.
+`--idempotency-key`, `--policy-version` e `--action-type` hanno valori demo dichiarati e possono essere sostituiti;
+non sono fingerprint reali.
 
 ## Evidenze da conservare
 
 - Output grezzo dei tre comandi, con data, OS e versione di `rustc`
 - Conferma che il default è `deny` e che `n` non produce esecuzione
+- Conferma che con hash derivati non compare il `warning`, e che compare con i vecchi valori demo espliciti
 - RAW della risposta `y`, con gli stati attraversati fino a `completed`
 - Contenuto di `target/demo-audit.jsonl`: campi presenti, assenza di testo catturato e di `CANARY-`
 - Conteggio `sources`/`withheld`/`refused lines`, i campi `principal`/`approver` e risultati dei due comandi di test
@@ -101,6 +109,7 @@ sono fingerprint reali.
 - [ ] `--policy allow` + `y`: stato `completed`, audit `allow` / `succeeded`, sorgente citata
 - [ ] `--policy allow` + `n`: nessuna esecuzione, audit negato
 - [ ] L'audit non contiene payload, prompt, testo catturato o `CANARY-`
+- [ ] Nessun `warning` con hash derivati; `warning` presente solo con i vecchi valori demo espliciti
 - [ ] Righe malformate e oggetti trattenuti contati, non silenziati; selezione ambigua rifiutata
 - [ ] Test dei casi negativi eseguiti e verdi
 - [ ] Nessun dato personale nei file prodotti
